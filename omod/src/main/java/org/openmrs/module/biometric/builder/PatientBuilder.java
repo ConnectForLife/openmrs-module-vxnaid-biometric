@@ -80,6 +80,10 @@ public class PatientBuilder {
       setIdentifier(patient, BiometricApiConstants.NIN_IDENTIFIER_NAME, request.getNin(), location);
     }
 
+    if (StringUtils.isNotBlank(request.getChildNumber())) {
+      setIdentifier(patient, BiometricApiConstants.CHILD_NUMBER_IDENTIFIER_NAME, request.getChildNumber(), location);
+    }
+
     // store first sync date of a participant, actual registration date will be stored in
     // dateCreated field
     List<AttributeData> attributes = request.getAttributes();
@@ -112,6 +116,10 @@ public class PatientBuilder {
 
     if (StringUtils.isNotBlank(request.getNin())) {
       setIdentifier(patient, BiometricApiConstants.NIN_IDENTIFIER_NAME, request.getNin(), location);
+    }
+
+    if (StringUtils.isNotBlank(request.getChildNumber())) {
+      setIdentifier(patient, BiometricApiConstants.CHILD_NUMBER_IDENTIFIER_NAME, request.getChildNumber(), location);
     }
 
     setAttributes(patient, request.getAttributes());

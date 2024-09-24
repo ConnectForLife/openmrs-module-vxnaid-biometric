@@ -33,6 +33,8 @@ public class RegisterRequest {
 
   private String nin;
 
+  private String childNumber;
+
   private List<Address> addresses;
 
   private List<AttributeData> attributes;
@@ -104,6 +106,14 @@ public class RegisterRequest {
 
   public void setNin(String nin) {
     this.nin = nin;
+  }
+
+  public String getChildNumber() {
+    return childNumber;
+  }
+
+  public void setChildNumber(String childNumber) {
+    this.childNumber = childNumber;
   }
 
   public List<Address> getAddresses() {
