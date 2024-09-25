@@ -23,6 +23,7 @@ import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Visit;
 import org.openmrs.VisitAttribute;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.biometric.api.constants.BiometricApiConstants;
 import org.openmrs.module.biometric.api.model.AttributeData;
 import org.openmrs.module.biometric.contract.NewVisitResponse;
@@ -116,7 +117,8 @@ public class VisitResponseBuilder {
         observation.setDatetime(
             new SimpleDateFormat(RFC_FORMAT).format(encounter.getEncounterDatetime()));
         observation.setName(SanitizeUtil.sanitizeOutput(obs.getConcept().getName().getName()));
-        observation.setValue(SanitizeUtil.sanitizeOutput(obs.getValueText()));
+        observation.setValue(
+            SanitizeUtil.sanitizeOutput(obs.getValueAsString(Context.getLocale())));
         observations.add(observation);
       }
     }
