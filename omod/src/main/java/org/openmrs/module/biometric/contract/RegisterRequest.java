@@ -35,6 +35,10 @@ public class RegisterRequest {
 
   private String childNumber;
 
+  private String childFirstName;
+
+  private String childLastName;
+
   private List<Address> addresses;
 
   private List<AttributeData> attributes;
@@ -114,6 +118,22 @@ public class RegisterRequest {
 
   public void setChildNumber(String childNumber) {
     this.childNumber = childNumber;
+  }
+
+  public String getChildFirstName() {
+    return childFirstName;
+  }
+
+  public void setChildFirstName(String childFirstName) {
+    this.childFirstName = childFirstName;
+  }
+
+  public String getChildLastName() {
+    return childLastName;
+  }
+
+  public void setChildLastName(String childLastName) {
+    this.childLastName = childLastName;
   }
 
   public List<Address> getAddresses() {
