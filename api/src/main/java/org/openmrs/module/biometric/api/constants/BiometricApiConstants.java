@@ -33,6 +33,7 @@ public final class BiometricApiConstants {
   public static final String ACTIVE_COUNT = "activeCount";
   public static final String CFL_VACCINES = "cfl.vaccines";
   public static final String DOSING_VISIT_TYPE = "Dosing";
+  public static final String ADVERSE_EFFECTS_ENCOUNTER_TYPE = "Adverse Effects";
   public static final String DOSE_NUMBER_ATTRIBUTE_TYPE_NAME = "Dose number";
   private static final String GP_PREFIX = "biometric.api.config";
   public static final String MAIN_CONFIG_GP = GP_PREFIX + ".main";
@@ -45,6 +46,7 @@ public final class BiometricApiConstants {
   public static final String SUBSTANCES_CONFIG_GP = GP_PREFIX + ".substances";
   public static final String SUBSTANCE_GROUPS_GP = GP_PREFIX + ".substanceGroups";
   public static final String OTHER_SUBSTANCES_CONFIG_GP = GP_PREFIX + ".otherSubstances";
+  public static final String ADVERSE_EFFECTS_CONCEPT_UUID = "fae0b2fb-501f-46e7-a4d3-05b0c8827c06";
 
   private BiometricApiConstants() {
   }

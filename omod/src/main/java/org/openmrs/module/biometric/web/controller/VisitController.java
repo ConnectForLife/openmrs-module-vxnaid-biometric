@@ -10,6 +10,7 @@
 package org.openmrs.module.biometric.web.controller;
 
 import static org.openmrs.module.biometric.constants.BiometricModConstants.DEVICE_ID;
+import static org.openmrs.module.biometric.constants.BiometricModConstants.LOCATION_ATTRIBUTE;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -30,7 +31,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jackson.type.TypeReference;
 import org.openmrs.Concept;
 import org.openmrs.Encounter;
+import org.openmrs.Location;
 import org.openmrs.Obs;
+import org.openmrs.Patient;
+import org.openmrs.PersonAttribute;
 import org.openmrs.Visit;
 import org.openmrs.VisitAttribute;
 import org.openmrs.VisitAttributeType;
@@ -404,6 +408,43 @@ public class VisitController extends BaseRestController {
     visitService.saveVisit(visit);
   }
 
+  @ResponseStatus(HttpStatus.OK)
+  @ResponseBody
+  @RequestMapping(
+      value = "/reportAdverseEffectForPatient/{patientUuid}",
+      method = RequestMethod.POST)
+  public void reportAdverseEffectForPatient(
+      @PathVariable("patientUuid") String patientUuid, @RequestBody String adverseEffectsText)
+      throws EntityNotFoundException, ParseException {
+    Patient patient = Context.getPatientService().getPatientByUuid(patientUuid);
+    if (patient == null) {
+      throw new EntityNotFoundException(
+          String.format("Patient with uuid: %s not found", patientUuid));
+    }
+
+    Encounter adverseEffectsEncounter = createAdverseEffectsEncounter(patient);
+    Concept adverseEffectConcept =
+        Context.getConceptService()
+            .getConceptByUuid(BiometricApiConstants.ADVERSE_EFFECTS_CONCEPT_UUID);
+    if (adverseEffectConcept == null) {
+      throw new EntityNotFoundException(
+          String.format(
+              "Concept with uuid: %s not found",
+              BiometricApiConstants.ADVERSE_EFFECTS_CONCEPT_UUID));
+    }
+
+    String escapedAdverseEffectsText = StringUtils.strip(adverseEffectsText, "\"");
+
+    Obs obs = new Obs();
+    obs.setConcept(adverseEffectConcept);
+    obs.setPerson(patient);
+    obs.setObsDatetime(new Date());
+    obs.setValueAsString(escapedAdverseEffectsText);
+    obs.setEncounter(adverseEffectsEncounter);
+
+    Context.getObsService().saveObs(obs, "");
+  }
+
   private VisitAttributeType getVisitAttributeTypeByName(
       List<VisitAttributeType> visitAttributeTypes, String name) {
     for (VisitAttributeType attributeType : visitAttributeTypes) {
@@ -461,5 +502,27 @@ public class VisitController extends BaseRestController {
       visitToAddEncounter = existingVisit;
     }
     return visitToAddEncounter;
+  }
+
+  private Encounter createAdverseEffectsEncounter(Patient patient) throws EntityNotFoundException {
+    PersonAttribute locationAttribute = patient.getAttribute(LOCATION_ATTRIBUTE);
+    if (locationAttribute == null) {
+      throw new EntityNotFoundException(
+          String.format(
+              "Patient with uuid: %s does not have location assigned", patient.getUuid()));
+    }
+
+    Location location =
+        Context.getLocationService().getLocationByUuid(locationAttribute.getValue());
+
+    Encounter encounter = new Encounter();
+    encounter.setEncounterType(
+        Context.getEncounterService()
+            .getEncounterType(BiometricApiConstants.ADVERSE_EFFECTS_ENCOUNTER_TYPE));
+    encounter.setPatient(patient);
+    encounter.setEncounterDatetime(new Date());
+    encounter.setLocation(location);
+
+    return Context.getEncounterService().saveEncounter(encounter);
   }
 }
