@@ -92,14 +92,14 @@ public class PatientBuilder {
     setAddresses(patient, request.getAddresses());
 
     PersonName personName = new PersonName();
-    if (StringUtils.isBlank(request.getChildFirstName())
-        && StringUtils.isBlank(request.getChildLastName())) {
+    if (StringUtils.isBlank(request.getChildFirstName())) {
       personName.setGivenName(GIVEN_NAME);
     } else {
       personName.setGivenName(request.getChildFirstName());
-      personName.setFamilyName(request.getChildLastName());
     }
+    personName.setFamilyName(request.getChildLastName());
     patient.addName(personName);
+
     return patient;
   }
 
@@ -131,9 +131,12 @@ public class PatientBuilder {
     setAddresses(patient, request.getAddresses());
 
     PersonName personName = patient.getPersonName();
-    personName.setGivenName(request.getChildFirstName());
+    if (StringUtils.isBlank(request.getChildFirstName())) {
+      personName.setGivenName(GIVEN_NAME);
+    } else {
+      personName.setGivenName(request.getChildFirstName());
+    }
     personName.setFamilyName(request.getChildLastName());
-
     patient.addName(personName);
 
     return patient;
