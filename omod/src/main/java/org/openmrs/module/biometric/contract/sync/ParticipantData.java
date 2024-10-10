@@ -31,6 +31,18 @@ public class ParticipantData {
   private String participantId;
 
   @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
+  private String nin;
+
+  @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
+  private String childNumber;
+
+  @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
+  private String childFirstName;
+
+  @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
+  private String childLastName;
+
+  @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
   private Gender gender;
 
   @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
@@ -56,6 +68,38 @@ public class ParticipantData {
 
   public void setParticipantUuid(String participantUuid) {
     this.participantUuid = participantUuid;
+  }
+
+  public String getNin() {
+    return nin;
+  }
+
+  public void setNin(String nin) {
+    this.nin = nin;
+  }
+
+  public String getChildNumber() {
+    return childNumber;
+  }
+
+  public void setChildNumber(String childNumber) {
+    this.childNumber = childNumber;
+  }
+
+  public String getChildFirstName() {
+    return childFirstName;
+  }
+
+  public void setChildFirstName(String childFirstName) {
+    this.childFirstName = childFirstName;
+  }
+
+  public String getChildLastName() {
+    return childLastName;
+  }
+
+  public void setChildLastName(String childLastName) {
+    this.childLastName = childLastName;
   }
 
   public Long getDateModified() {

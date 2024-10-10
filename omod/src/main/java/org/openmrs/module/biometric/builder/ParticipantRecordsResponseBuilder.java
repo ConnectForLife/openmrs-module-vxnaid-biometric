@@ -38,6 +38,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.CHILD_NUMBER_IDENTIFIER_NAME;
+import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.NIN_IDENTIFIER_NAME;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_DELETE;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_UPDATE;
 
@@ -88,6 +90,10 @@ public class ParticipantRecordsResponseBuilder {
       if (Boolean.FALSE.equals(patient.getVoided())) {
         participantData.setBirthDate(util.dateToISO8601(patient.getBirthdate()));
         participantData.setGender(Gender.valueOf(patient.getGender()));
+        participantData.setChildNumber(getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
+        participantData.setNin(getIdentifierByType(patient, NIN_IDENTIFIER_NAME));
+        participantData.setChildFirstName(patient.getGivenName());
+        participantData.setChildLastName(patient.getFamilyName());
 
         List<AttributeData> attributes = new ArrayList<>(10);
         for (PersonAttribute personAttribute : patient.getPerson().getActiveAttributes()) {
@@ -144,5 +150,14 @@ public class ParticipantRecordsResponseBuilder {
 
   private JsonNode getPersonAddressConfiguration(String country) throws EntityNotFoundException, IOException {
     return util.toJsonNode(configService.retrieveConfig(BiometricApiConstants.MAIN_CONFIG)).get(ADDRESS_FIELDS).get(country);
+  }
+
+  private String getIdentifierByType(Patient patient, String identifierTypeName) {
+    PatientIdentifier patientIdentifier = patient.getPatientIdentifier(identifierTypeName);
+    if (patientIdentifier == null) {
+      return null;
+    }
+
+    return patientIdentifier.getIdentifier();
   }
 }
