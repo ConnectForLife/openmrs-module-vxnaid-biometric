@@ -91,14 +91,7 @@ public class PatientBuilder {
     setAttributes(patient, attributes);
     setAddresses(patient, request.getAddresses());
 
-    PersonName personName = new PersonName();
-    if (StringUtils.isBlank(request.getChildFirstName())) {
-      personName.setGivenName(GIVEN_NAME);
-    } else {
-      personName.setGivenName(request.getChildFirstName());
-    }
-    personName.setFamilyName(request.getChildLastName());
-    patient.addName(personName);
+    patient.addName(createPersonName(request));
 
     return patient;
   }
@@ -129,17 +122,33 @@ public class PatientBuilder {
 
     setAttributes(patient, request.getAttributes());
     setAddresses(patient, request.getAddresses());
+    updatePersonName(patient, request);
 
-    PersonName personName = patient.getPersonName();
+    return patient;
+  }
+
+  private void updatePersonName(Patient patient, RegisterRequest request) {
+    PersonName patientName = patient.getPersonName();
+    if (hasNameChanged(patientName, request)) {
+      patientName.setVoided(Boolean.TRUE);
+      patient.addName(createPersonName(request));
+    }
+  }
+
+  private boolean hasNameChanged(PersonName personName, RegisterRequest request) {
+    return (!StringUtils.equals(request.getChildFirstName(), personName.getGivenName())) || (!StringUtils.equals(request.getChildLastName(), personName.getFamilyName()));
+  }
+
+  private PersonName createPersonName(RegisterRequest request) {
+    PersonName personName = new PersonName();
     if (StringUtils.isBlank(request.getChildFirstName())) {
       personName.setGivenName(GIVEN_NAME);
     } else {
       personName.setGivenName(request.getChildFirstName());
     }
     personName.setFamilyName(request.getChildLastName());
-    patient.addName(personName);
 
-    return patient;
+    return personName;
   }
 
   private void setIdentifier(
@@ -153,16 +162,23 @@ public class PatientBuilder {
 
     PatientIdentifier patientIdentifier = patient.getPatientIdentifier(patientIdentifierType);
     if (patientIdentifier == null) {
-      patientIdentifier = new PatientIdentifier();
-      patientIdentifier.setIdentifierType(patientIdentifierType);
-      patientIdentifier.setIdentifier(util.removeWhiteSpaces(identifierValue));
-      patientIdentifier.setPreferred(
-          StringUtils.equals(identifierTypeName, OPEN_MRS_ID) ? Boolean.TRUE : Boolean.FALSE);
-      patientIdentifier.setLocation(location);
-      patient.addIdentifier(patientIdentifier);
-    } else {
-      patientIdentifier.setIdentifier(identifierValue);
+      patient.addIdentifier(createNewPatientIdentifier(patientIdentifierType, identifierValue, identifierTypeName, location));
+    } else if (!StringUtils.equals(patientIdentifier.getIdentifier(), identifierValue)) {
+      patientIdentifier.setVoided(Boolean.TRUE);
+      patientIdentifier.setVoidReason("Changed to new value: " + identifierValue);
+      patient.addIdentifier(createNewPatientIdentifier(patientIdentifierType, identifierValue, identifierTypeName, location));
     }
+  }
+
+  private PatientIdentifier createNewPatientIdentifier(PatientIdentifierType patientIdentifierType, String identifierValue, String identifierTypeName, Location location) {
+    PatientIdentifier patientIdentifier = new PatientIdentifier();
+    patientIdentifier.setIdentifierType(patientIdentifierType);
+    patientIdentifier.setIdentifier(util.removeWhiteSpaces(identifierValue));
+    patientIdentifier.setPreferred(
+        StringUtils.equals(identifierTypeName, OPEN_MRS_ID) ? Boolean.TRUE : Boolean.FALSE);
+    patientIdentifier.setLocation(location);
+
+    return patientIdentifier;
   }
 
   private void setAttributes(Patient patient, List<AttributeData> attributes)
