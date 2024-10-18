@@ -1115,6 +1115,9 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "childNumber" : {
+          "type" : "string"
+        },
         "addresses" : {
           "type" : "object",
           "additionalProperties" : {
@@ -1143,6 +1146,9 @@
           "type" : "string"
         },
         "nin" : {
+          "type" : "string"
+        },
+        "childNumber" : {
           "type" : "string"
         },
         "addresses" : {

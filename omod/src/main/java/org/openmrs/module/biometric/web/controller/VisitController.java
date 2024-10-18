@@ -87,7 +87,7 @@ public class VisitController extends BaseRestController {
   private static final String VISITUUID_COLLISION_DIFF_PART_UUID =
       "VisitUuid collision with different participantUuid";
   private static final String PARTICIPANT_NOT_FOUND_ERROR =
-      "Participant with the given Uuid does not exists";
+      "Participant with the given Uuid: %s does not exists";
 
   private static final String DOSE_NUMBER_ATTRIBUTE_TYPE_NAME = "Dose number";
 
@@ -462,7 +462,7 @@ public class VisitController extends BaseRestController {
     }
     // check if a participant exists with the given participant uuid
     if (!util.isParticipantExists(participantUuid)) {
-      throw new EntityNotFoundException(PARTICIPANT_NOT_FOUND_ERROR);
+      throw new EntityNotFoundException(String.format(PARTICIPANT_NOT_FOUND_ERROR, participantUuid));
     }
 
     List<Visit> existingVisitList =

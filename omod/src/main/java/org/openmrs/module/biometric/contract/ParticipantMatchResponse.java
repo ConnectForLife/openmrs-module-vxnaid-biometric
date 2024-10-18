@@ -35,6 +35,8 @@ public class ParticipantMatchResponse {
 
   private int matchingScore;
 
+  private String childNumber;
+
   private Map<String, String> addresses;
 
   private List<AttributeData> attributes;
@@ -61,6 +63,14 @@ public class ParticipantMatchResponse {
 
   public void setMatchingScore(int matchingScore) {
     this.matchingScore = matchingScore;
+  }
+
+  public String getChildNumber() {
+    return childNumber;
+  }
+
+  public void setChildNumber(String childNumber) {
+    this.childNumber = childNumber;
   }
 
   public Map<String, String> getAddresses() {

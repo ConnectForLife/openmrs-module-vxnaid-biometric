@@ -91,6 +91,7 @@ public class ParticipantMatchResponseBuilder {
     matchResponse.setAttributes(response.getAttributes());
     matchResponse.setMatchWith(matchWith);
     matchResponse.setMatchingScore(score);
+    matchResponse.setChildNumber(response.getChildNumber());
     return matchResponse;
   }
 

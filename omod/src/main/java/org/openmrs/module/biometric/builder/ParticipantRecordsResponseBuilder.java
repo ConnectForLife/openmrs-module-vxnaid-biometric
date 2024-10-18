@@ -90,8 +90,8 @@ public class ParticipantRecordsResponseBuilder {
       if (Boolean.FALSE.equals(patient.getVoided())) {
         participantData.setBirthDate(util.dateToISO8601(patient.getBirthdate()));
         participantData.setGender(Gender.valueOf(patient.getGender()));
-        participantData.setChildNumber(getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
-        participantData.setNin(getIdentifierByType(patient, NIN_IDENTIFIER_NAME));
+        participantData.setChildNumber(OpenMRSUtil.getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
+        participantData.setNin(OpenMRSUtil.getIdentifierByType(patient, NIN_IDENTIFIER_NAME));
         participantData.setChildFirstName(patient.getGivenName());
         participantData.setChildLastName(patient.getFamilyName());
 
@@ -150,14 +150,5 @@ public class ParticipantRecordsResponseBuilder {
 
   private JsonNode getPersonAddressConfiguration(String country) throws EntityNotFoundException, IOException {
     return util.toJsonNode(configService.retrieveConfig(BiometricApiConstants.MAIN_CONFIG)).get(ADDRESS_FIELDS).get(country);
-  }
-
-  private String getIdentifierByType(Patient patient, String identifierTypeName) {
-    PatientIdentifier patientIdentifier = patient.getPatientIdentifier(identifierTypeName);
-    if (patientIdentifier == null) {
-      return null;
-    }
-
-    return patientIdentifier.getIdentifier();
   }
 }

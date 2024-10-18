@@ -1,6 +1,6 @@
 package org.openmrs.module.biometric.api.util;
 
-import org.openmrs.BaseOpenmrsData;
+import org.openmrs.BaseOpenmrsData;import org.openmrs.Patient;import org.openmrs.PatientIdentifier;
 
 import java.util.Date;
 
@@ -18,5 +18,14 @@ public class OpenMRSUtil {
    */
   public static Date getLastModificationDate(BaseOpenmrsData openmrsData) {
     return openmrsData.getDateChanged() != null ? openmrsData.getDateChanged() : openmrsData.getDateCreated();
+  }
+
+  public static String getIdentifierByType(Patient patient, String identifierTypeName) {
+    PatientIdentifier patientIdentifier = patient.getPatientIdentifier(identifierTypeName);
+    if (patientIdentifier == null) {
+      return null;
+    }
+
+    return patientIdentifier.getIdentifier();
   }
 }

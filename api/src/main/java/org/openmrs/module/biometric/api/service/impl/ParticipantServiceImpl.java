@@ -10,6 +10,7 @@
 
 package org.openmrs.module.biometric.api.service.impl;
 
+import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.CHILD_NUMBER_IDENTIFIER_NAME;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.PERSON_IMAGE_ATTRIBUTE;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_DELETE;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_UPDATE;
@@ -321,6 +322,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
         response.setParticipantId(patient.getPatientIdentifier().getIdentifier());
         response.setGender(Gender.valueOf(patient.getGender()));
         response.setBirthDate(util.dateToISO8601(patient.getBirthdate()));
+        response.setChildNumber(OpenMRSUtil.getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
 
         List<AttributeData> attributes = new ArrayList<>(10);
         for (PersonAttribute personAttribute : patient.getPerson().getActiveAttributes()) {

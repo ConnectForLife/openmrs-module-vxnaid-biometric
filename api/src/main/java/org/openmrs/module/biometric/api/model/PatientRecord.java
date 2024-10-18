@@ -4,20 +4,16 @@
  * OpenMRS is also distributed under the terms of the Healthcare Disclaimer located at
  * http://openmrs.org/license.
  *
- * <p>Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS graphic logo is
- * a trademark of OpenMRS Inc.
+ * <p>Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS graphic logo is a
+ * trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.biometric.api.model;
 
 import java.util.List;
 import java.util.Map;
 import org.openmrs.module.biometric.api.contract.Gender;
 
-/**
- * This class is used for building the participant details.
- *
- */
+/** This class is used for building the participant details. */
 public class PatientRecord {
 
   private String participantId;
@@ -27,6 +23,8 @@ public class PatientRecord {
   private String birthDate;
 
   private String nin;
+
+  private String childNumber;
 
   public String getNin() {
     return nin;
@@ -80,4 +78,11 @@ public class PatientRecord {
     this.attributes = attributes;
   }
 
+  public String getChildNumber() {
+    return childNumber;
+  }
+
+  public void setChildNumber(String childNumber) {
+    this.childNumber = childNumber;
+  }
 }
