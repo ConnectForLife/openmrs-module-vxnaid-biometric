@@ -61,10 +61,9 @@ public class PatientBuilder {
       throws EntityNotFoundException, ParseException {
     Patient patient = new Patient();
     patient.setUuid(request.getParticipantUuid());
-    patient.setDateCreated(util.convertIsoStringToDate(request.getRegistrationDate()));
-    patient.setPersonDateCreated(util.convertIsoStringToDate(request.getRegistrationDate()));
-    patient.setDateChanged(new Date());
-    patient.setPersonDateChanged(new Date());
+    Date registrationDate = util.convertIsoStringToDate(request.getRegistrationDate());
+    patient.setDateCreated(registrationDate);
+    patient.setPersonDateCreated(registrationDate);
     patient.setGender(request.getGender());
     patient.setBirthdateEstimated(request.getIsBirthDateEstimated());
     patient.setBirthdate(util.convertIsoStringToDate(request.getBirthdate()));
@@ -101,7 +100,7 @@ public class PatientBuilder {
     Patient patient = patientService.getPatientByUuid(request.getParticipantUuid());
     Date updateDate = util.convertIsoStringToDate(request.getUpdateDate());
     patient.setDateChanged(updateDate);
-    patient.setPersonDateCreated(updateDate);
+    patient.setPersonDateChanged(updateDate);
     patient.setGender(request.getGender());
     patient.setBirthdateEstimated(request.getIsBirthDateEstimated());
     patient.setBirthdate(util.convertIsoStringToDate(request.getBirthdate()));
