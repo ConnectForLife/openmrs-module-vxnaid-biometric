@@ -103,6 +103,7 @@ public class ParticipantController extends BaseRestController {
   private static final String PATIENT_ALREADY_EXISTS_WITH_DIFF_ID =
       "Participant already exists with the same uuid";
   private static final String PARTICIPANT_ID_ALREADY_EXISTS = "Participant id already in use";
+  private static final String UPDATE_TYPE = "update"; //required for correct response serialization in mobile app
 
   @Autowired private PatientBuilder patientBuilder;
 
@@ -457,7 +458,7 @@ public class ParticipantController extends BaseRestController {
   @ResponseBody
   @RequestMapping(
       value = "/getParticipantsByUuids",
-      consumes = {MediaType.MULTIPART_FORM_DATA_VALUE},
+      consumes = {MediaType.APPLICATION_JSON_VALUE},
       method = RequestMethod.POST)
   public List<PatientResponse> getParticipantsByUuids(
       @RequestHeader(value = DEVICE_ID) String deviceId,
@@ -471,8 +472,11 @@ public class ParticipantController extends BaseRestController {
         util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
 
     util.validateUuids(map.get(PARTICIPANT_UUIDS));
-    return participantService.findPatientsByUuids(
+    List<PatientResponse> results = participantService.findPatientsByUuids(
         SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
+    results.forEach(patientResponse -> patientResponse.setType(UPDATE_TYPE));
+
+    return results;
   }
 
   /**

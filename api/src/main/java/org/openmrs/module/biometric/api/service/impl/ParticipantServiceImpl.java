@@ -314,28 +314,33 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
       throws BiometricApiException,
       IOException {
     List<PatientResponse> responseList = new ArrayList<>();
-    for (Patient patient : patients) {
-      if (!Boolean.TRUE.equals(patient.getVoided())) {
-        PatientResponse response = new PatientResponse();
-        response.setParticipantUuid(patient.getUuid());
-        response.setDateModified(OpenMRSUtil.getLastModificationDate(patient).getTime());
-        response.setParticipantId(patient.getPatientIdentifier().getIdentifier());
-        response.setGender(Gender.valueOf(patient.getGender()));
-        response.setBirthDate(util.dateToISO8601(patient.getBirthdate()));
-        response.setChildNumber(OpenMRSUtil.getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
+    List<Patient> activePatients = patients.stream()
+        .filter(Objects::nonNull)
+        .filter(patient -> !patient.getVoided())
+        .collect(Collectors.toList());
 
-        List<AttributeData> attributes = new ArrayList<>(10);
-        for (PersonAttribute personAttribute : patient.getPerson().getActiveAttributes()) {
-          AttributeData attribute = new AttributeData();
-          attribute.setType(personAttribute.getAttributeType().getName());
-          attribute.setValue(personAttribute.getValue());
-          attributes.add(attribute);
-        }
-        response.setAttributes(attributes);
-        response.setAddresses(util.getPersonAddressProperty(patient.getPerson()));
-        responseList.add(response);
+    for (Patient patient : activePatients) {
+      PatientResponse response = new PatientResponse();
+      response.setParticipantUuid(patient.getUuid());
+      response.setDateModified(OpenMRSUtil.getLastModificationDate(patient).getTime());
+      response.setParticipantId(patient.getPatientIdentifier().getIdentifier());
+      response.setGender(Gender.valueOf(patient.getGender()));
+      response.setBirthDate(util.dateToISO8601(patient.getBirthdate()));
+      response.setChildNumber(OpenMRSUtil.getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
+
+      List<AttributeData> attributes = new ArrayList<>(10);
+      for (PersonAttribute personAttribute : patient.getPerson().getActiveAttributes()) {
+        AttributeData attribute = new AttributeData();
+        attribute.setType(personAttribute.getAttributeType().getName());
+        attribute.setValue(personAttribute.getValue());
+        attributes.add(attribute);
       }
+      response.setAttributes(attributes);
+      response.setAddresses(util.getPersonAddressProperty(patient.getPerson()));
+//      response.setType("update");
+      responseList.add(response);
     }
+
     return responseList;
   }
 

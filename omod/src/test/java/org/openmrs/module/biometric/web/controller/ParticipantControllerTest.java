@@ -299,7 +299,7 @@ public class ParticipantControllerTest {
     mockMvc.perform(
         fileUpload(PARTICIPANT_UUIDS_ENDPOINT).header(DEVICE_HEADER_PARAM, DEVICE_HEADER_VALUE)
             .content(body.getBytes(StandardCharsets.UTF_8))
-            .contentType(MediaType.MULTIPART_FORM_DATA))
+            .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
     verify(participantService, times(1)).findPatientsByUuids(map.get(PARTICIPANT_UUIDS));
   }
@@ -316,7 +316,7 @@ public class ParticipantControllerTest {
     mockMvc.perform(
         fileUpload(PARTICIPANT_UUIDS_ENDPOINT).header(DEVICE_HEADER_PARAM, DEVICE_HEADER_VALUE)
             .content(body.getBytes(StandardCharsets.UTF_8))
-            .contentType(MediaType.MULTIPART_FORM_DATA))
+            .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isBadRequest());
     verify(participantService, times(0)).findPatientsByUuids(map.get(PARTICIPANT_UUIDS));
   }

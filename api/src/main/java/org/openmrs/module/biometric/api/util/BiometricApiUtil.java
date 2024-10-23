@@ -128,7 +128,11 @@ public class BiometricApiUtil {
   public Map<String, String> getPersonAddressProperty(Person person)
       throws BiometricApiException, IOException {
     Map<String, String> addressMap = new HashMap<>();
-    String country = getPersonAddressPropertyByField(person.getPersonAddress(), COUNTRY);
+    PersonAddress personAddress = person.getPersonAddress();
+    if (personAddress == null) {
+      return addressMap;
+    }
+    String country = getPersonAddressPropertyByField(personAddress, COUNTRY);
     Iterator<JsonNode> iter = new ObjectMapper()
         .readTree(configService.retrieveConfig(BiometricApiConstants.MAIN_CONFIG))
         .get(ADDRESS_FIELDS)

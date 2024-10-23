@@ -4,23 +4,21 @@
  * OpenMRS is also distributed under the terms of the Healthcare Disclaimer located at
  * http://openmrs.org/license.
  *
- * <p>Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS graphic logo is
- * a trademark of OpenMRS Inc.
+ * <p>Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS graphic logo is a
+ * trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.biometric.api.contract;
 
 import org.openmrs.module.biometric.api.model.PatientRecord;
 
-/**
- * This class is used for building the participant details response.
- *
- */
+/** This class is used for building the participant details response. */
 public class PatientResponse extends PatientRecord {
 
   private String participantUuid;
 
   private Long dateModified;
+
+  private String type;
 
   public String getParticipantUuid() {
     return participantUuid;
@@ -38,4 +36,11 @@ public class PatientResponse extends PatientRecord {
     this.dateModified = dateModified;
   }
 
+  public String getType() {
+    return type;
+  }
+
+  public void setType(String type) {
+    this.type = type;
+  }
 }
