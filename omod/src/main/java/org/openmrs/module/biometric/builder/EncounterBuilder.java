@@ -28,6 +28,8 @@ public class EncounterBuilder {
 
   private static final String ENCOUNTER_TYPE_DOSING = "Dosing";
   private static final String ENCOUNTER_TYPE_FOLLOWUP = "Follow up";
+  private static final String ENCOUNTER_TYPE_ADVERSE_EFFECTS = "Adverse Effects";
+
   @Autowired
   private BiometricModUtil util;
 
@@ -42,9 +44,12 @@ public class EncounterBuilder {
     Encounter encounter = new Encounter();
     String visitType = visit.getVisitType().getName();
     String encounterType = ENCOUNTER_TYPE_DOSING;
-    if (!visitType.equals(ENCOUNTER_TYPE_DOSING)) {
+    if (visitType.equals(ENCOUNTER_TYPE_ADVERSE_EFFECTS)) {
+      encounterType = ENCOUNTER_TYPE_ADVERSE_EFFECTS;
+    } else if (!visitType.equals(ENCOUNTER_TYPE_DOSING)) {
       encounterType = ENCOUNTER_TYPE_FOLLOWUP;
     }
+
     encounter.setPatient(visit.getPatient());
     encounter.setEncounterType(Context.getEncounterService().getEncounterType(encounterType));
     encounter.setEncounterDatetime(util.convertIsoStringToDate(request.getStartDatetime()));
