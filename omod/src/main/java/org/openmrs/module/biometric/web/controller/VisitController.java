@@ -239,12 +239,9 @@ public class VisitController extends BaseRestController {
     VisitRequest request = util.jsonToObject(visitRequest, VisitRequest.class);
 
     // check for mandatory fields
-    if (null == request.getObservations()
-        || request.getObservations().isEmpty()
-        || null == request.getVisitUuid()
-        || null == request.getLocationUuid()) {
+    if (null == request.getVisitUuid() || null == request.getLocationUuid()) {
       throw new EntityValidationException(
-          "Please check the mandatory params VisitId/LocationId/Observations");
+          "Please check the mandatory params: visit uuid or location uuid");
     }
 
     Visit visitToAddEncounter = findVisitToAddEncounter(request.getVisitUuid());
