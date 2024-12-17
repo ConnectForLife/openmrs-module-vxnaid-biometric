@@ -47,6 +47,8 @@ public final class BiometricApiConstants {
   public static final String SUBSTANCE_GROUPS_GP = GP_PREFIX + ".substanceGroups";
   public static final String OTHER_SUBSTANCES_CONFIG_GP = GP_PREFIX + ".otherSubstances";
   public static final String ADVERSE_EFFECTS_CONCEPT_UUID = "fae0b2fb-501f-46e7-a4d3-05b0c8827c06";
+  public static final String MOTHER_FIRST_NAME_ATTRIBUTE_TYPE_NAME = "Mother's first name";
+  public static final String MOTHER_LAST_NAME_ATTRIBUTE_TYPE_NAME = "Mother's last name";
 
   private BiometricApiConstants() {
   }

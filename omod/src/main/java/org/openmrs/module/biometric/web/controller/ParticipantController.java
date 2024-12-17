@@ -349,6 +349,9 @@ public class ParticipantController extends BaseRestController {
       @ApiParam(name = "phone", value = "Phone number of a participant", required = false)
           @RequestParam(value = "phone", required = false)
           String phone,
+      @ApiParam(name = "motherName", value = "Participant's mother name", required = false)
+          @RequestParam(value = "motherName", required = false)
+          String motherName,
       @ApiParam(name = "participantId", value = "Participant unique id", required = false)
           @RequestParam(value = "participantId", required = false)
           String participantId,
@@ -357,9 +360,10 @@ public class ParticipantController extends BaseRestController {
           String country)
       throws IOException, BiometricApiException {
 
-    if (null == template && StringUtils.isEmpty(participantId) && StringUtils.isEmpty(phone)) {
+    if (null == template && StringUtils.isEmpty(participantId) && StringUtils.isEmpty(phone)
+        && StringUtils.isEmpty(motherName)) {
       throw new EntityValidationException(
-          "template/ParticipantId/Phone is required for match a participant");
+          "template/ParticipantId/Phone/motherName is required for match a participant");
     }
 
     boolean isMFAEnabled =
@@ -369,7 +373,8 @@ public class ParticipantController extends BaseRestController {
     List<PatientResponse> patients =
         findBiographicData(
             SanitizeUtil.sanitizeInputString(participantId),
-            SanitizeUtil.sanitizeInputString(phone));
+            SanitizeUtil.sanitizeInputString(phone),
+            SanitizeUtil.sanitizeInputString(motherName));
     List<PatientResponse> patientsWithCountry = findPatientsWithCountry(country, patients);
 
     Set<String> participantSet = new HashSet<>(10);
@@ -703,6 +708,11 @@ public class ParticipantController extends BaseRestController {
     return participantService.findByPhone(phone);
   }
 
+  private List<PatientResponse> findByMotherName(String motherName)
+      throws IOException, BiometricApiException {
+    return participantService.findByMotherName(motherName);
+  }
+
   private List<BiometricMatchingResult> findByBiometricData(
       MultipartFile template, Set<String> participantSet) {
     List<BiometricMatchingResult> participants = new ArrayList<>();
@@ -715,20 +725,25 @@ public class ParticipantController extends BaseRestController {
     return participants;
   }
 
-  private List<PatientResponse> findBiographicData(String participantId, String phone)
+  private List<PatientResponse> findBiographicData(String participantId, String phone, String motherName)
       throws IOException, BiometricApiException {
-    List<PatientResponse> patientMatchesWithPhone = new ArrayList<>();
-    List<PatientResponse> patientMatchesWithParticipantId = new ArrayList<>();
+    List<PatientResponse> patientMatchesByPhone = new ArrayList<>();
+    List<PatientResponse> patientMatchesByParticipantId = new ArrayList<>();
+    List<PatientResponse> patientMatchesByMotherName = new ArrayList<>();
 
     if (null != phone) {
-      patientMatchesWithPhone = findByPhone(phone);
+      patientMatchesByPhone = findByPhone(phone);
     }
     if (null != participantId) {
-      patientMatchesWithParticipantId = findByParticipantId(participantId);
+      patientMatchesByParticipantId = findByParticipantId(participantId);
+    }
+
+    if (null != motherName) {
+      patientMatchesByMotherName = findByMotherName(motherName);
     }
 
     // combine participants by phone and by participant id
-    return util.mergePatients(patientMatchesWithPhone, patientMatchesWithParticipantId);
+    return util.mergePatients(patientMatchesByPhone, patientMatchesByParticipantId, patientMatchesByMotherName);
   }
 
   private List<PatientResponse> findPatientsWithCountry(

@@ -170,6 +170,29 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
     return buildPatientResponse(patients);
   }
 
+  @Transactional(readOnly = true)
+  @Override
+  public List<PatientResponse> findByMotherName(String motherName) throws BiometricApiException, IOException {
+    Criteria criteria = getSession().createCriteria(PersonAttribute.class, "pa")
+        .createAlias("pa.attributeType", "pat")
+        .add(Restrictions.like("pa.value", motherName, MatchMode.ANYWHERE))
+        .add(Restrictions.eq(VOID_FLAG, Boolean.FALSE))
+        .add(Restrictions.or(
+            Restrictions.eq("pat.name", BiometricApiConstants.MOTHER_FIRST_NAME_ATTRIBUTE_TYPE_NAME),
+            Restrictions.eq("pat.name", BiometricApiConstants.MOTHER_LAST_NAME_ATTRIBUTE_TYPE_NAME)
+        ));
+    List<PersonAttribute> personAttributes = criteria.list();
+    LOGGER.debug("findByMotherName results count : {}", personAttributes.size());
+    List<Patient> patients = new ArrayList<>();
+    for (PersonAttribute personAttribute : personAttributes) {
+      Integer personId = personAttribute.getPerson().getPersonId();
+      Patient patient = patientService.getPatient(personId);
+      patients.add(patient);
+    }
+
+    return buildPatientResponse(patients);
+  }
+
   @Override
   @Transactional(readOnly = true)
   public List<PatientResponse> findByParticipantId(String participantId) throws IOException,

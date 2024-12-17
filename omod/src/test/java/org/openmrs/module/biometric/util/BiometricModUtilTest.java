@@ -26,6 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -228,8 +229,11 @@ public class BiometricModUtilTest {
     PatientResponse patientResponse = new PatientResponse();
     patientResponse.setDateModified(System.currentTimeMillis());
     patientResponse.setParticipantUuid("ghijkl");
-    List<PatientResponse> patientResponseList = biometricModUtil
-        .mergePatients(Arrays.asList(patientResponse1), Arrays.asList(patientResponse));
+    List<PatientResponse> patientResponseList =
+        biometricModUtil.mergePatients(
+            Arrays.asList(patientResponse1),
+            Arrays.asList(patientResponse),
+            Collections.emptyList());
 
     assertEquals(2, patientResponseList.size());
   }

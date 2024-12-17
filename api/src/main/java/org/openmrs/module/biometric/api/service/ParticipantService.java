@@ -93,6 +93,17 @@ public interface ParticipantService {
   List<PatientResponse> findByPhone(String phone) throws BiometricApiException, IOException;
 
   /**
+   *
+   * @param motherName mother name of participant - can be part or complete of first or last name
+   * @return participants matched by mother name
+   * @throws BiometricApiException if there are any issues in fetching the participant's address
+   *     details
+   * @throws IOException if there are any issues in parsing main configuration defined in a global
+   *     property. Config json is parsed to retrieve person address fields
+   */
+  List<PatientResponse> findByMotherName(String motherName) throws BiometricApiException, IOException;
+
+  /**
    * Retrieve a patient by identifier.
    *
    * @param patientIdentifier unique identifier for a participant.

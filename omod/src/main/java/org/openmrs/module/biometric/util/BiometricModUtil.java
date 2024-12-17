@@ -198,15 +198,17 @@ public class BiometricModUtil {
   }
 
   /**
-   * Merges two list of patients to one list of patients.
+   * Merges three list of patients to one list of patients.
    *
-   * @param list1 first list of patints
+   * @param list1 first list of patients
    * @param list2 second list of patients
-   * @return meerged list of patients
+   * @param list3 third list of patients
+   * @return merged list of patients
    */
-  public List<PatientResponse> mergePatients(List<PatientResponse> list1, List<PatientResponse> list2) {
+  public List<PatientResponse> mergePatients(List<PatientResponse> list1, List<PatientResponse> list2,
+                                             List<PatientResponse> list3) {
     return new ArrayList<>(Stream
-        .of(list1, list2)
+        .of(list1, list2, list3)
         .flatMap(List::stream)
         .collect(Collectors.toMap(PatientResponse::getParticipantId, Function.identity(),
             (PatientResponse x, PatientResponse y) -> x))

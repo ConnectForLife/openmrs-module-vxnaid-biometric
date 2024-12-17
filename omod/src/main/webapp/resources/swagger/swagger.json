@@ -468,6 +468,12 @@
           "required" : false,
           "type" : "string"
         }, {
+          "name" : "motherName",
+          "in" : "query",
+          "description" : "Participant's mother name",
+          "required" : false,
+          "type" : "string"
+        }, {
           "name" : "participantId",
           "in" : "query",
           "description" : "Participant unique id",

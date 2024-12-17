@@ -221,7 +221,7 @@ public class ParticipantControllerTest {
     when(participantService.findByPhone(anyString())).thenReturn(Arrays.asList(patientResponse));
     when(participantService.findByParticipantId(anyString()))
         .thenReturn(Arrays.asList(patientResponse1));
-    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
+    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
         .thenReturn(Arrays.asList(patientResponse1));
     when(biometricService.matchBiometricData(any(byte[].class), anySetOf(String.class)))
         .thenReturn(Arrays.asList(participant));
@@ -269,7 +269,7 @@ public class ParticipantControllerTest {
     MockMultipartFile template = ControllerTestHelper.getTestTemplate();
     when(participantService.findByPhone(anyString())).thenReturn(Arrays.asList(patientResponse));
     when(participantService.findByParticipantId(anyString())).thenReturn(Collections.emptyList());
-    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
+    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
         .thenReturn(Arrays.asList(patientResponse1));
     when(biometricService.matchBiometricData(any(byte[].class), anySetOf(String.class)))
         .thenReturn(Collections.emptyList());
@@ -426,7 +426,7 @@ public class ParticipantControllerTest {
     when(participantService.findByPhone(anyString())).thenReturn(Arrays.asList(patientResponse));
     when(participantService.findByParticipantId(anyString()))
         .thenReturn(Arrays.asList(patientResponse1));
-    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
+    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
         .thenReturn(Arrays.asList(patientResponse1));
     when(locationUtil.getLocationUuid(patientResponse1.getAttributes())).thenReturn(LOCATION_UUID);
     when(locationUtil.getLocationByUuid(LOCATION_UUID)).thenReturn(location);
@@ -477,7 +477,7 @@ public class ParticipantControllerTest {
     when(participantService.findByPhone(anyString())).thenReturn(Arrays.asList(patientResponse));
     when(participantService.findByParticipantId(anyString()))
         .thenReturn(Arrays.asList(patientResponse1));
-    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
+    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
         .thenReturn(Arrays.asList(patientResponse1));
     when(biometricService.matchBiometricData(any(byte[].class), anySetOf(String.class)))
         .thenReturn(Collections.emptyList());
@@ -669,7 +669,7 @@ public class ParticipantControllerTest {
     when(participantService.findByPhone(anyString())).thenReturn(Arrays.asList(patientResponse));
     when(participantService.findByParticipantId(anyString()))
         .thenReturn(Arrays.asList(patientResponse1));
-    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
+    when(util.mergePatients(anyListOf(PatientResponse.class), anyListOf(PatientResponse.class), anyListOf(PatientResponse.class)))
         .thenReturn(Arrays.asList(patientResponse1));
     when(biometricService.matchBiometricData(any(byte[].class), anySetOf(String.class)))
         .thenThrow(Exception.class);
