@@ -93,8 +93,8 @@ public class VisitResponseBuilderTest {
     visit.setEncounters(encounters);
     visits.add(visit);
 
-    //When
-    when(util.getOldestEncounterInVisit(anyListOf(Visit.class))).thenReturn(visits);
+    // When
+    when(util.getLatestEncounterInVisit(anyListOf(Visit.class))).thenReturn(visits);
     List<VisitResponse> visitResponses = visitResponseBuilder.createFrom(visits);
     //Then
     assertNotNull(visitResponses);

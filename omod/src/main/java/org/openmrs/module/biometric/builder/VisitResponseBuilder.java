@@ -63,7 +63,7 @@ public class VisitResponseBuilder {
    */
   public List<VisitResponse> createFrom(List<Visit> visits) {
     List<VisitResponse> responses = new ArrayList<>(BiometricApiConstants.INITIAL_SIZE);
-    List<Visit> modifiedVisits = util.getOldestEncounterInVisit(visits);
+    List<Visit> modifiedVisits = util.getLatestEncounterInVisit(visits);
     for (Visit visit : modifiedVisits) {
       VisitResponse visitResponse = new VisitResponse();
       visitResponse.setVisitUuid(SanitizeUtil.sanitizeOutput(visit.getUuid()));

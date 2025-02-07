@@ -13,7 +13,6 @@ package org.openmrs.module.biometric.web.controller;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anySetOf;
 import static org.mockito.Mockito.anyString;
@@ -188,7 +187,7 @@ public class VisitControllerTest {
     visit = createVisit();
     visit.addEncounter(encounter1);
     visitsNew.add(visit);
-    when(util.getOldestEncounterInVisit(anyListOf(Visit.class))).thenReturn(visitsNew);
+    when(util.getLatestEncounterInVisit(anyListOf(Visit.class))).thenReturn(visitsNew);
     //When
     ResultActions r = mockMvc.perform(
         get(RETRIEVE_VISIT_ENDPOINT, PERSON_UUID)

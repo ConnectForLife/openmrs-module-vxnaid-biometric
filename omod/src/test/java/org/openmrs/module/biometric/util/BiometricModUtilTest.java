@@ -47,8 +47,6 @@ import org.openmrs.api.LocationService;
 import org.openmrs.api.PersonService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.biometric.api.contract.PatientResponse;
-import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
-import org.openmrs.module.biometric.api.model.AttributeData;
 import org.openmrs.module.biometric.common.BiometricTestUtil;
 import org.openmrs.module.biometric.constants.BiometricTestConstants;
 import org.openmrs.module.biometric.contract.MatchResponse;
@@ -251,7 +249,7 @@ public class BiometricModUtilTest {
   }
 
   @Test
-  public void getOldestEncounterInVisit_removeMultipleEncounterForOneVisit() {
+  public void getLatestEncounterInVisit_removeMultipleEncounterForOneVisit() {
     List<Visit> visits = new ArrayList<>();
     Visit visit = createVisit();
     Encounter encounter = visitEncounter(2013, Calendar.JANUARY, 9, 11, 11, 12);
@@ -259,18 +257,18 @@ public class BiometricModUtilTest {
     encounter = visitEncounter(2013, Calendar.JANUARY, 11, 9, 11, 12);
     visit.addEncounter(encounter);
     visits.add(visit);
-    visits = biometricModUtil.getOldestEncounterInVisit(visits);
+    visits = biometricModUtil.getLatestEncounterInVisit(visits);
     assertEquals(1, visits.get(0).getEncounters().size());
   }
 
   @Test
-  public void getOldestEncounterInVisit_skipFunctionWhenOneEncounterOnly() {
+  public void getLatestEncounterInVisit_skipFunctionWhenOneEncounterOnly() {
     List<Visit> visits = new ArrayList<>();
     Visit visit = createVisit();
     Encounter encounter = visitEncounter(2013, Calendar.JANUARY, 9, 11, 11, 12);
     visit.addEncounter(encounter);
     visits.add(visit);
-    visits = biometricModUtil.getOldestEncounterInVisit(visits);
+    visits = biometricModUtil.getLatestEncounterInVisit(visits);
     assertEquals(1, visits.get(0).getEncounters().size());
   }
 

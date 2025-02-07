@@ -231,12 +231,11 @@ public class BiometricModUtil {
    * @param visits list of visits
    * @return oldest encounter
    */
-  public List<Visit> getOldestEncounterInVisit(List<Visit> visits) {
-
+  public List<Visit> getLatestEncounterInVisit(List<Visit> visits) {
     for (Visit visit : visits) {
       List<Encounter> encounterListForVisit = visit.getNonVoidedEncounters();
       if (null != encounterListForVisit && !encounterListForVisit.isEmpty() && encounterListForVisit.size() > 1) {
-        encounterListForVisit.sort(Comparator.comparingLong(v -> v.getDateCreated().getTime()));
+        encounterListForVisit.sort(Comparator.comparingLong((Encounter v) -> v.getDateCreated().getTime()).reversed());
         visit.setEncounters(Collections.emptySet());
         visit.setEncounters(Collections.singleton(encounterListForVisit.get(0)));
       }
