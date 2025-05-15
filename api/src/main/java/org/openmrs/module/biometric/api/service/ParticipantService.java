@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
+import org.openmrs.PatientIdentifierType;
 import org.openmrs.Person;
 import org.openmrs.module.biometric.api.contract.PatientResponse;
 import org.openmrs.module.biometric.api.contract.SyncImageResponse;
@@ -155,8 +156,8 @@ public interface ParticipantService {
   /**
    * Retrieves all patient's identifiers of given type
    *
-   * @param identifierType identifier type name
+   * @param identifierType identifier type
    * @return list of patient identifiers
    */
-  List<PatientIdentifier> getAllIdentifiersByType(String identifierType);
+  List<PatientIdentifier> getAllIdentifiersByType(PatientIdentifierType identifierType);
 }
