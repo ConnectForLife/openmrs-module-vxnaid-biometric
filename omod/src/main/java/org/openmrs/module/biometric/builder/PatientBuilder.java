@@ -98,6 +98,11 @@ public class PatientBuilder {
   public Patient createFromUpdateRequest(RegisterRequest request)
       throws EntityNotFoundException, ParseException {
     Patient patient = patientService.getPatientByUuid(request.getParticipantUuid());
+
+    if(patient == null) {
+      patient = createFromRegisterRequest(request);
+    }
+
     Date updateDate = util.convertIsoStringToDate(request.getUpdateDate());
     patient.setDateChanged(updateDate);
     patient.setPersonDateChanged(updateDate);

@@ -47,6 +47,7 @@ import org.openmrs.module.biometric.api.exception.BiometricApiException;
 import org.openmrs.module.biometric.api.exception.EntityConflictException;
 import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
 import org.openmrs.module.biometric.api.exception.EntityValidationException;
+import org.openmrs.module.biometric.api.observability.Stopwatch;
 import org.openmrs.module.biometric.api.service.VisitSchedulerService;
 import org.openmrs.module.biometric.builder.EncounterBuilder;
 import org.openmrs.module.biometric.builder.ObservationBuilder;
@@ -141,21 +142,26 @@ public class VisitController extends BaseRestController {
       @ApiParam(name = "visitRequest", value = "Details of visit to create") @RequestBody
           String visitRequest)
       throws IOException, BiometricApiException, ParseException {
-    VisitRequest request = util.jsonToObject(visitRequest, VisitRequest.class);
+    final Stopwatch stopwatch = new Stopwatch("VisitController.createVisit").start();
+    try {
+      VisitRequest request = util.jsonToObject(visitRequest, VisitRequest.class);
 
-    // check for mandatory fields
-    if (StringUtils.isBlank(request.getParticipantUuid())
-        || StringUtils.isBlank(request.getVisitType())
-        || StringUtils.isBlank(request.getStartDatetime())
-        || StringUtils.isBlank(request.getLocationUuid())) {
-      throw new EntityValidationException(VISIT_VALIDATION_MSG);
+      // check for mandatory fields
+      if (StringUtils.isBlank(request.getParticipantUuid())
+          || StringUtils.isBlank(request.getVisitType())
+          || StringUtils.isBlank(request.getStartDatetime())
+          || StringUtils.isBlank(request.getLocationUuid())) {
+        throw new EntityValidationException(VISIT_VALIDATION_MSG);
+      }
+
+      Visit visit = visitRequestBuilder.createFrom(request);
+      // check if visit already exists
+      validateVisitParticipantUuids(request.getParticipantUuid(), request.getVisitUuid());
+      Visit newVisit = visitSchedulerService.createOrUpdateVisit(visit);
+      return visitResponseBuilder.createFrom(newVisit);
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    Visit visit = visitRequestBuilder.createFrom(request);
-    // check if visit already exists
-    validateVisitParticipantUuids(request.getParticipantUuid(), request.getVisitUuid());
-    Visit newVisit = visitSchedulerService.createOrUpdateVisit(visit);
-    return visitResponseBuilder.createFrom(newVisit);
   }
 
   /**
@@ -193,9 +199,14 @@ public class VisitController extends BaseRestController {
           @PathVariable("personUuid")
           String personUuid)
       throws EntityNotFoundException {
-    List<Visit> visits =
-        visitSchedulerService.findVisitByPersonUuid(SanitizeUtil.sanitizeInputString(personUuid));
-    return visitResponseBuilder.createFrom(visits);
+    final Stopwatch stopwatch = new Stopwatch("VisitController.retrieveVisit").start();
+    try {
+      List<Visit> visits =
+          visitSchedulerService.findVisitByPersonUuid(SanitizeUtil.sanitizeInputString(personUuid));
+      return visitResponseBuilder.createFrom(visits);
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -235,34 +246,38 @@ public class VisitController extends BaseRestController {
           @RequestBody
           String visitRequest)
       throws IOException, ParseException, BiometricApiException {
+    final Stopwatch stopwatch = new Stopwatch("VisitController.createEncounter").start();
+    try {
+      VisitRequest request = util.jsonToObject(visitRequest, VisitRequest.class);
 
-    VisitRequest request = util.jsonToObject(visitRequest, VisitRequest.class);
+      // check for mandatory fields
+      if (null == request.getVisitUuid() || null == request.getLocationUuid()) {
+        throw new EntityValidationException(
+            "Please check the mandatory params: visit uuid or location uuid");
+      }
 
-    // check for mandatory fields
-    if (null == request.getVisitUuid() || null == request.getLocationUuid()) {
-      throw new EntityValidationException(
-          "Please check the mandatory params: visit uuid or location uuid");
+      Visit visitToAddEncounter = findVisitToAddEncounter(request.getVisitUuid());
+
+      // Build updated visit object with status as occurred
+      Visit updatedVisitObj = visitRequestBuilder.createFrom(request, visitToAddEncounter);
+
+      // Build Encounter object
+      Encounter encounterObj = encounterBuilder.createFrom(request, visitToAddEncounter);
+
+      // Build observations like vaccine barcode, manufacture etc
+      Set<Obs> obsSet =
+          observationBuilder.createFrom(request, visitToAddEncounter.getPatient().getPerson());
+
+      // Create a new encounter
+      Encounter encounter =
+          visitSchedulerService.createEncounter(updatedVisitObj, encounterObj, obsSet);
+      LOGGER.info("Encounter created for visit id : {}", request.getVisitUuid());
+
+      // build the response object
+      return visitResponseBuilder.createFrom(encounter.getVisit());
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    Visit visitToAddEncounter = findVisitToAddEncounter(request.getVisitUuid());
-
-    // Build updated visit object with status as occurred
-    Visit updatedVisitObj = visitRequestBuilder.createFrom(request, visitToAddEncounter);
-
-    // Build Encounter object
-    Encounter encounterObj = encounterBuilder.createFrom(request, visitToAddEncounter);
-
-    // Build observations like vaccine barcode, manufacture etc
-    Set<Obs> obsSet =
-        observationBuilder.createFrom(request, visitToAddEncounter.getPatient().getPerson());
-
-    // Create a new encounter
-    Encounter encounter =
-        visitSchedulerService.createEncounter(updatedVisitObj, encounterObj, obsSet);
-    LOGGER.info("Encounter created for visit id : {}", request.getVisitUuid());
-
-    // build the response object
-    return visitResponseBuilder.createFrom(encounter.getVisit());
   }
 
   /**
@@ -300,16 +315,18 @@ public class VisitController extends BaseRestController {
       @ApiParam(name = "body", value = "visit uuid list", required = false) @RequestBody
           String body)
       throws IOException, BiometricApiException {
-
-    LOGGER.debug("getVisitsByUuids request triggered at : {}", new Date());
-
-    Map<String, Set<String>> map =
-        util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
-    util.validateUuids(map.get("visitUuids"));
-    List<Visit> visits =
-        visitSchedulerService.findVisitsByUuids(
-            SanitizeUtil.sanitizeStringList(map.get("visitUuids")));
-    return visitResponseBuilder.createFrom(visits);
+    final Stopwatch stopwatch = new Stopwatch("VisitController.getVisitsByUuids").start();
+    try {
+      Map<String, Set<String>> map =
+          util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
+      util.validateUuids(map.get("visitUuids"));
+      List<Visit> visits =
+          visitSchedulerService.findVisitsByUuids(
+              SanitizeUtil.sanitizeStringList(map.get("visitUuids")));
+      return visitResponseBuilder.createFrom(visits);
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -318,44 +335,49 @@ public class VisitController extends BaseRestController {
   public void updateEncounterObservationByVisit(
       @PathVariable("visitUuid") String visitUuid, @RequestBody Map<String, String> obsToAdd)
       throws EntityNotFoundException, ParseException {
-    Visit visit = Context.getVisitService().getVisitByUuid(visitUuid);
-    if (visit == null) {
-      throw new EntityNotFoundException(String.format("Visit with uuid %s not found", visitUuid));
-    }
-
-    EncounterService encounterService = Context.getEncounterService();
-    Encounter encounter;
-    List<Encounter> encounters = encounterService.getEncountersByVisit(visit, false);
-    if (CollectionUtils.isEmpty(encounters)) {
-      encounter = new Encounter();
-      encounter.setEncounterType(
-          Context.getEncounterService().getEncounterType(BiometricApiConstants.DOSING_VISIT_TYPE));
-      encounter.setPatient(visit.getPatient());
-      encounter.setEncounterDatetime(new Date());
-      encounter.setLocation(visit.getLocation());
-      encounter.setVisit(visit);
-      encounterService.saveEncounter(encounter);
-    } else {
-      encounter = encounters.get(0);
-    }
-
-    ObsService obsService = Context.getObsService();
-    for (Map.Entry<String, String> entry : obsToAdd.entrySet()) {
-      Concept concept = Context.getConceptService().getConcept(entry.getKey());
-
-      if (null == concept) {
-        LOGGER.warn(
-            "Concept with name {} does not exist. Observation will not be saved!", entry.getKey());
-      } else {
-        Obs obs = new Obs();
-        obs.setConcept(concept);
-        obs.setPerson(encounter.getPatient());
-        obs.setObsDatetime(new Date());
-        obs.setValueAsString(entry.getValue());
-
-        obs.setEncounter(encounter);
-        obsService.saveObs(obs, "");
+    final Stopwatch stopwatch = new Stopwatch("VisitController.updateEncounterObservationByVisit").start();
+    try {
+      Visit visit = Context.getVisitService().getVisitByUuid(visitUuid);
+      if (visit == null) {
+        throw new EntityNotFoundException(String.format("Visit with uuid %s not found", visitUuid));
       }
+
+      EncounterService encounterService = Context.getEncounterService();
+      Encounter encounter;
+      List<Encounter> encounters = encounterService.getEncountersByVisit(visit, false);
+      if (CollectionUtils.isEmpty(encounters)) {
+        encounter = new Encounter();
+        encounter.setEncounterType(
+            Context.getEncounterService().getEncounterType(BiometricApiConstants.DOSING_VISIT_TYPE));
+        encounter.setPatient(visit.getPatient());
+        encounter.setEncounterDatetime(new Date());
+        encounter.setLocation(visit.getLocation());
+        encounter.setVisit(visit);
+        encounterService.saveEncounter(encounter);
+      } else {
+        encounter = encounters.get(0);
+      }
+
+      ObsService obsService = Context.getObsService();
+      for (Map.Entry<String, String> entry : obsToAdd.entrySet()) {
+        Concept concept = Context.getConceptService().getConcept(entry.getKey());
+
+        if (null == concept) {
+          LOGGER.warn(
+              "Concept with name {} does not exist. Observation will not be saved!", entry.getKey());
+        } else {
+          Obs obs = new Obs();
+          obs.setConcept(concept);
+          obs.setPerson(encounter.getPatient());
+          obs.setObsDatetime(new Date());
+          obs.setValueAsString(entry.getValue());
+
+          obs.setEncounter(encounter);
+          obsService.saveObs(obs, "");
+        }
+      }
+    } finally {
+      stopwatch.stopAndLog();
     }
   }
 
@@ -366,43 +388,48 @@ public class VisitController extends BaseRestController {
       @PathVariable("visitUuid") String visitUuid,
       @RequestBody Map<String, String> visitAttributesToAddOrReplace)
       throws EntityNotFoundException {
-    VisitService visitService = Context.getVisitService();
-    Visit visit = visitService.getVisitByUuid(visitUuid);
-    if (visit == null) {
-      throw new EntityNotFoundException(String.format("Visit with uuid %s not found", visitUuid));
-    }
-
-    for (Map.Entry<String, String> entry : visitAttributesToAddOrReplace.entrySet()) {
-      Optional<VisitAttribute> existingVisitAttribute =
-          visit.getActiveAttributes().stream()
-              .filter(
-                  attr ->
-                      StringUtils.equalsIgnoreCase(
-                          attr.getAttributeType().getName(), entry.getKey()))
-              .filter(attr -> !attr.getVoided())
-              .findFirst();
-
-      VisitAttributeType visitAttributeType =
-          getVisitAttributeTypeByName(visitService.getAllVisitAttributeTypes(), entry.getKey());
-      if (visitAttributeType == null) {
-        throw new EntityNotFoundException(
-            String.format("Visit type with name: %s not found", entry.getKey()));
+    final Stopwatch stopwatch = new Stopwatch("VisitController.updateVisitAttributes").start();
+    try {
+      VisitService visitService = Context.getVisitService();
+      Visit visit = visitService.getVisitByUuid(visitUuid);
+      if (visit == null) {
+        throw new EntityNotFoundException(String.format("Visit with uuid %s not found", visitUuid));
       }
 
-      if (existingVisitAttribute.isPresent()) {
-        VisitAttribute visitAttribute = existingVisitAttribute.get();
-        visitAttribute.setVoided(Boolean.TRUE);
-        visitAttribute.setVoidReason("Voided because of updating with new value");
+      for (Map.Entry<String, String> entry : visitAttributesToAddOrReplace.entrySet()) {
+        Optional<VisitAttribute> existingVisitAttribute =
+            visit.getActiveAttributes().stream()
+                .filter(
+                    attr ->
+                        StringUtils.equalsIgnoreCase(
+                            attr.getAttributeType().getName(), entry.getKey()))
+                .filter(attr -> !attr.getVoided())
+                .findFirst();
+
+        VisitAttributeType visitAttributeType =
+            getVisitAttributeTypeByName(visitService.getAllVisitAttributeTypes(), entry.getKey());
+        if (visitAttributeType == null) {
+          throw new EntityNotFoundException(
+              String.format("Visit type with name: %s not found", entry.getKey()));
+        }
+
+        if (existingVisitAttribute.isPresent()) {
+          VisitAttribute visitAttribute = existingVisitAttribute.get();
+          visitAttribute.setVoided(Boolean.TRUE);
+          visitAttribute.setVoidReason("Voided because of updating with new value");
+        }
+
+        VisitAttribute visitAttribute = new VisitAttribute();
+        visitAttribute.setAttributeType(visitAttributeType);
+        visitAttribute.setValue(entry.getValue());
+        visitAttribute.setOwner(visit);
+        visit.addAttribute(visitAttribute);
       }
 
-      VisitAttribute visitAttribute = new VisitAttribute();
-      visitAttribute.setAttributeType(visitAttributeType);
-      visitAttribute.setValue(entry.getValue());
-      visitAttribute.setOwner(visit);
-      visit.addAttribute(visitAttribute);
+      visitService.saveVisit(visit);
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    visitService.saveVisit(visit);
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -413,33 +440,38 @@ public class VisitController extends BaseRestController {
   public void reportAdverseEffectForPatient(
       @PathVariable("patientUuid") String patientUuid, @RequestBody String adverseEffectsText)
       throws EntityNotFoundException, ParseException {
-    Patient patient = Context.getPatientService().getPatientByUuid(patientUuid);
-    if (patient == null) {
-      throw new EntityNotFoundException(
-          String.format("Patient with uuid: %s not found", patientUuid));
+    final Stopwatch stopwatch = new Stopwatch("VisitController.reportAdverseEffectForPatient").start();
+    try {
+      Patient patient = Context.getPatientService().getPatientByUuid(patientUuid);
+      if (patient == null) {
+        throw new EntityNotFoundException(
+            String.format("Patient with uuid: %s not found", patientUuid));
+      }
+
+      Encounter adverseEffectsEncounter = createAdverseEffectsEncounter(patient);
+      Concept adverseEffectConcept =
+          Context.getConceptService()
+              .getConceptByUuid(BiometricApiConstants.ADVERSE_EFFECTS_CONCEPT_UUID);
+      if (adverseEffectConcept == null) {
+        throw new EntityNotFoundException(
+            String.format(
+                "Concept with uuid: %s not found",
+                BiometricApiConstants.ADVERSE_EFFECTS_CONCEPT_UUID));
+      }
+
+      String escapedAdverseEffectsText = StringUtils.strip(adverseEffectsText, "\"");
+
+      Obs obs = new Obs();
+      obs.setConcept(adverseEffectConcept);
+      obs.setPerson(patient);
+      obs.setObsDatetime(new Date());
+      obs.setValueAsString(escapedAdverseEffectsText);
+      obs.setEncounter(adverseEffectsEncounter);
+
+      Context.getObsService().saveObs(obs, "");
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    Encounter adverseEffectsEncounter = createAdverseEffectsEncounter(patient);
-    Concept adverseEffectConcept =
-        Context.getConceptService()
-            .getConceptByUuid(BiometricApiConstants.ADVERSE_EFFECTS_CONCEPT_UUID);
-    if (adverseEffectConcept == null) {
-      throw new EntityNotFoundException(
-          String.format(
-              "Concept with uuid: %s not found",
-              BiometricApiConstants.ADVERSE_EFFECTS_CONCEPT_UUID));
-    }
-
-    String escapedAdverseEffectsText = StringUtils.strip(adverseEffectsText, "\"");
-
-    Obs obs = new Obs();
-    obs.setConcept(adverseEffectConcept);
-    obs.setPerson(patient);
-    obs.setObsDatetime(new Date());
-    obs.setValueAsString(escapedAdverseEffectsText);
-    obs.setEncounter(adverseEffectsEncounter);
-
-    Context.getObsService().saveObs(obs, "");
   }
 
   private VisitAttributeType getVisitAttributeTypeByName(

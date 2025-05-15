@@ -37,6 +37,7 @@ import org.openmrs.module.biometric.api.contract.SyncTemplateResponse;
 import org.openmrs.module.biometric.api.exception.BiometricApiException;
 import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
 import org.openmrs.module.biometric.api.exception.EntityValidationException;
+import org.openmrs.module.biometric.api.observability.Stopwatch;
 import org.openmrs.module.biometric.api.service.ConfigService;
 import org.openmrs.module.biometric.api.service.SyncService;
 import org.openmrs.module.biometric.builder.ParticipantRecordsResponseBuilder;
@@ -145,38 +146,42 @@ public class SyncController extends BaseRestController {
       @RequestBody
           String syncRequest)
       throws IOException, EntityNotFoundException, EntityValidationException {
+    final Stopwatch stopwatch = new Stopwatch("SyncController.getAllParticipants").start();
+    try {
+      final Instant start = Instant.now();
+      SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
+      locationUtil.validateSyncLocationData(request);
+      LOGGER.info(
+          "Sync request is triggered for the country : {} and the site : {} to retrieve participant data",
+          request.getSyncScope().getCountry(),
+          request.getSyncScope().getSiteUuid());
 
-    final Instant start = Instant.now();
-    SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
-    locationUtil.validateSyncLocationData(request);
-    LOGGER.info(
-        "Sync request is triggered for the country : {} and the site : {} to retrieve participant data",
-        request.getSyncScope().getCountry(),
-        request.getSyncScope().getSiteUuid());
+      List<String> locations = getLocations(request.getSyncScope());
+      if (locations.isEmpty()) {
+        throw new EntityNotFoundException("Location not found for the given sync scope");
+      }
+      Date dateModified = null;
+      if (null != request.getDateModifiedOffset()) {
+        dateModified = new Date(request.getDateModifiedOffset());
+      }
+      int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
+      List<Patient> patients = syncService.getAllPatients(dateModified, maxResultsToFetch, locations);
 
-    List<String> locations = getLocations(request.getSyncScope());
-    if (locations.isEmpty()) {
-      throw new EntityNotFoundException("Location not found for the given sync scope");
+      for (String uuid : request.getUuidsWithDateModifiedOffset()) {
+        patients.removeIf(
+            e ->
+                uuid.equals(e.getUuid())
+                    && request.getDateModifiedOffset() == e.getDateChanged().getTime());
+      }
+
+      Map<String, Long> map = syncService.getPatientCount(locations);
+      Instant end = Instant.now();
+      LOGGER.info("Sync-Participants call execution time : {}", Duration.between(start, end));
+      return participantRecordsResponseBuilder.createFrom(
+          patients, map.get(TABLE_COUNT), map.get(VOIDED_COUNT), request);
+    } finally {
+      stopwatch.stopAndLog();
     }
-    Date dateModified = null;
-    if (null != request.getDateModifiedOffset()) {
-      dateModified = new Date(request.getDateModifiedOffset());
-    }
-    int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
-    List<Patient> patients = syncService.getAllPatients(dateModified, maxResultsToFetch, locations);
-
-    for (String uuid : request.getUuidsWithDateModifiedOffset()) {
-      patients.removeIf(
-          e ->
-              uuid.equals(e.getUuid())
-                  && request.getDateModifiedOffset() == e.getDateChanged().getTime());
-    }
-
-    Map<String, Long> map = syncService.getPatientCount(locations);
-    Instant end = Instant.now();
-    LOGGER.info("Sync-Participants call execution time : {}", Duration.between(start, end));
-    return participantRecordsResponseBuilder.createFrom(
-        patients, map.get(TABLE_COUNT), map.get(VOIDED_COUNT), request);
   }
 
   /**
@@ -215,41 +220,45 @@ public class SyncController extends BaseRestController {
       method = RequestMethod.POST)
   public SyncResponse getAllVisits(@RequestBody String syncRequest)
       throws IOException, EntityNotFoundException, EntityValidationException {
+    final Stopwatch stopwatch = new Stopwatch("SyncController.getAllVisits").start();
+    try {
+      final Instant start = Instant.now();
+      SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
+      locationUtil.validateSyncLocationData(request);
+      LOGGER.info(
+          "Sync request is triggered for the country : {} and the site : {} to retrieve visits data",
+          request.getSyncScope().getCountry(),
+          request.getSyncScope().getSiteUuid());
+      List<String> locations = getLocations(request.getSyncScope());
 
-    final Instant start = Instant.now();
-    SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
-    locationUtil.validateSyncLocationData(request);
-    LOGGER.info(
-        "Sync request is triggered for the country : {} and the site : {} to retrieve visits data",
-        request.getSyncScope().getCountry(),
-        request.getSyncScope().getSiteUuid());
-    List<String> locations = getLocations(request.getSyncScope());
+      if (locations.isEmpty()) {
+        throw new EntityNotFoundException(LOCATION_NOT_FOUND);
+      }
 
-    if (locations.isEmpty()) {
-      throw new EntityNotFoundException(LOCATION_NOT_FOUND);
+      Date dateModified = null;
+      if (null != request.getDateModifiedOffset()) {
+        dateModified = new Date(request.getDateModifiedOffset());
+      }
+      int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
+
+      List<Visit> visits = syncService.getAllVisits(dateModified, maxResultsToFetch, locations);
+
+      for (String uuid : request.getUuidsWithDateModifiedOffset()) {
+        visits.removeIf(
+            e ->
+                uuid.equals(e.getUuid())
+                    && request.getDateModifiedOffset() == e.getDateChanged().getTime());
+      }
+      List<VisitResponse> visitResponses = visitResponseBuilder.createFrom(visits);
+      Map<String, Long> map = syncService.getVisitsCount(locations);
+
+      Instant end = Instant.now();
+      LOGGER.info("Sync-Visits call execution time : {}", Duration.between(start, end));
+      return syncResponseBuilder.createFrom(
+          visitResponses, map.get(TABLE_COUNT), null, map.get(VOIDED_COUNT), request);
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    Date dateModified = null;
-    if (null != request.getDateModifiedOffset()) {
-      dateModified = new Date(request.getDateModifiedOffset());
-    }
-    int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
-
-    List<Visit> visits = syncService.getAllVisits(dateModified, maxResultsToFetch, locations);
-
-    for (String uuid : request.getUuidsWithDateModifiedOffset()) {
-      visits.removeIf(
-          e ->
-              uuid.equals(e.getUuid())
-                  && request.getDateModifiedOffset() == e.getDateChanged().getTime());
-    }
-    List<VisitResponse> visitResponses = visitResponseBuilder.createFrom(visits);
-    Map<String, Long> map = syncService.getVisitsCount(locations);
-
-    Instant end = Instant.now();
-    LOGGER.info("Sync-Visits call execution time : {}", Duration.between(start, end));
-    return syncResponseBuilder.createFrom(
-        visitResponses, map.get(TABLE_COUNT), null, map.get(VOIDED_COUNT), request);
   }
 
   /**
@@ -291,51 +300,55 @@ public class SyncController extends BaseRestController {
       @RequestBody
           String syncRequest)
       throws IOException, EntityValidationException, EntityNotFoundException {
+    final Stopwatch stopwatch = new Stopwatch("SyncController.getAllConfigUpdates").start();
+    try {
+      final Instant start = Instant.now();
+      SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
+      locationUtil.validateSyncLocationData(request);
+      String deviceId = SanitizeUtil.sanitizeInputString(deviceMac);
+      LOGGER.info(
+          "Sync-Images request is triggered from the device : {} with scope : {} ",
+          deviceId, request.getSyncScope().getSiteUuid());
 
-    final Instant start = Instant.now();
-    SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
-    locationUtil.validateSyncLocationData(request);
-    String deviceId = SanitizeUtil.sanitizeInputString(deviceMac);
-    LOGGER.info(
-        "Sync-Images request is triggered from the device : {} with scope : {} ",
-        deviceId, request.getSyncScope().getSiteUuid());
+      if (null == request.getOptimize()) {
+        throw new EntityValidationException("Optimize flag is missing");
+      }
 
-    if (null == request.getOptimize()) {
-      throw new EntityValidationException("Optimize flag is missing");
+      List<String> locations = getLocations(request.getSyncScope());
+
+      Date dateModified = null;
+      if (null != request.getDateModifiedOffset()) {
+        dateModified = new Date(request.getDateModifiedOffset());
+      }
+
+      if (locations.isEmpty()) {
+        throw new EntityNotFoundException(LOCATION_NOT_FOUND);
+      }
+      int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
+
+      List<SyncImageResponse> records =
+          syncService.getAllParticipantImages(
+              dateModified,
+              maxResultsToFetch,
+              locations,
+              deviceId,
+              request.getOptimize());
+
+      for (String uuid : request.getUuidsWithDateModifiedOffset()) {
+        records.removeIf(
+            e ->
+                uuid.equals(e.getParticipantUuid())
+                    && request.getDateModifiedOffset() == e.getDateModified().longValue());
+      }
+      Map<String, Long> map =
+          syncService.getParticipantImagesCount(locations, deviceId, request.getOptimize());
+      Instant end = Instant.now();
+      LOGGER.info("Sync-ParticipantImages call execution time : {}", Duration.between(start, end));
+      return syncResponseBuilder.createFrom(
+          records, map.get("tableCount"), map.get("ignoredCount"), map.get("voidedCount"), request);
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    List<String> locations = getLocations(request.getSyncScope());
-
-    Date dateModified = null;
-    if (null != request.getDateModifiedOffset()) {
-      dateModified = new Date(request.getDateModifiedOffset());
-    }
-
-    if (locations.isEmpty()) {
-      throw new EntityNotFoundException(LOCATION_NOT_FOUND);
-    }
-    int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
-
-    List<SyncImageResponse> records =
-        syncService.getAllParticipantImages(
-            dateModified,
-            maxResultsToFetch,
-            locations,
-            deviceId,
-            request.getOptimize());
-
-    for (String uuid : request.getUuidsWithDateModifiedOffset()) {
-      records.removeIf(
-          e ->
-              uuid.equals(e.getParticipantUuid())
-                  && request.getDateModifiedOffset() == e.getDateModified().longValue());
-    }
-    Map<String, Long> map =
-        syncService.getParticipantImagesCount(locations, deviceId, request.getOptimize());
-    Instant end = Instant.now();
-    LOGGER.info("Sync-ParticipantImages call execution time : {}", Duration.between(start, end));
-    return syncResponseBuilder.createFrom(
-        records, map.get("tableCount"), map.get("ignoredCount"), map.get("voidedCount"), request);
   }
 
   /**
@@ -383,62 +396,66 @@ public class SyncController extends BaseRestController {
       @RequestBody
           String syncRequest)
       throws IOException, EntityValidationException, EntityNotFoundException {
+    final Stopwatch stopwatch = new Stopwatch("SyncController.getAllParticipantBiometricsTemplates").start();
+    try {
+      final Instant start = Instant.now();
+      String deviceId = SanitizeUtil.sanitizeInputString(deviceMac);
+      SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
+      locationUtil.validateSyncLocationData(request);
+      LOGGER.info(
+          "Sync-Templates request is triggered from the device : {} with scope : {} ",
+          deviceId, request.getSyncScope().getSiteUuid());
 
-    final Instant start = Instant.now();
-    String deviceId = SanitizeUtil.sanitizeInputString(deviceMac);
-    SyncRequest request = util.jsonToObject(syncRequest, SyncRequest.class);
-    locationUtil.validateSyncLocationData(request);
-    LOGGER.info(
-        "Sync-Templates request is triggered from the device : {} with scope : {} ",
-        deviceId, request.getSyncScope().getSiteUuid());
+      if (null == request.getOptimize()) {
+        throw new EntityValidationException("Optimize flag is missing");
+      }
 
-    if (null == request.getOptimize()) {
-      throw new EntityValidationException("Optimize flag is missing");
+      List<String> locations = getLocations(request.getSyncScope());
+
+      if (locations.isEmpty()) {
+        throw new EntityNotFoundException(LOCATION_NOT_FOUND);
+      }
+
+      Date dateModified = null;
+      if (null != request.getDateModifiedOffset()) {
+        dateModified = new Date(request.getDateModifiedOffset());
+      }
+      int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
+
+      List<SyncTemplateResponse> templates =
+          syncService.getAllBiometricTemplates(
+              dateModified,
+              deviceId,
+              request.getSyncScope().getCountry(),
+              request.getSyncScope().getSiteUuid(),
+              locations,
+              request.getOptimize(),
+              maxResultsToFetch);
+
+      for (String uuid : request.getUuidsWithDateModifiedOffset()) {
+        templates.removeIf(
+            e ->
+                uuid.equals(e.getParticipantUuid())
+                    && request.getDateModifiedOffset().longValue()
+                    == e.getDateModified().longValue());
+      }
+
+      Map<String, Long> map =
+          syncService.getBiometricTemplatesCount(deviceId, locations, request.getOptimize());
+
+      Long tableCount = map.get(TABLE_COUNT);
+      Long ignoredCount = null;
+      if (request.getOptimize()) {
+        ignoredCount = map.get(IGNORED_COUNT);
+      }
+      Long voidedCount = map.get(VOIDED_COUNT);
+      Instant end = Instant.now();
+      LOGGER.info("Sync-Templates call execution time : {}", Duration.between(start, end));
+      return syncResponseBuilder.createFrom(
+          templates, tableCount, ignoredCount, voidedCount, request);
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    List<String> locations = getLocations(request.getSyncScope());
-
-    if (locations.isEmpty()) {
-      throw new EntityNotFoundException(LOCATION_NOT_FOUND);
-    }
-
-    Date dateModified = null;
-    if (null != request.getDateModifiedOffset()) {
-      dateModified = new Date(request.getDateModifiedOffset());
-    }
-    int maxResultsToFetch = request.getLimit() + request.getUuidsWithDateModifiedOffset().size();
-
-    List<SyncTemplateResponse> templates =
-        syncService.getAllBiometricTemplates(
-            dateModified,
-            deviceId,
-            request.getSyncScope().getCountry(),
-            request.getSyncScope().getSiteUuid(),
-            locations,
-            request.getOptimize(),
-            maxResultsToFetch);
-
-    for (String uuid : request.getUuidsWithDateModifiedOffset()) {
-      templates.removeIf(
-          e ->
-              uuid.equals(e.getParticipantUuid())
-                  && request.getDateModifiedOffset().longValue()
-                  == e.getDateModified().longValue());
-    }
-
-    Map<String, Long> map =
-        syncService.getBiometricTemplatesCount(deviceId, locations, request.getOptimize());
-
-    Long tableCount = map.get(TABLE_COUNT);
-    Long ignoredCount = null;
-    if (request.getOptimize()) {
-      ignoredCount = map.get(IGNORED_COUNT);
-    }
-    Long voidedCount = map.get(VOIDED_COUNT);
-    Instant end = Instant.now();
-    LOGGER.info("Sync-Templates call execution time : {}", Duration.between(start, end));
-    return syncResponseBuilder.createFrom(
-        templates, tableCount, ignoredCount, voidedCount, request);
   }
 
   /**
@@ -469,7 +486,12 @@ public class SyncController extends BaseRestController {
       produces = MediaType.APPLICATION_JSON_VALUE,
       method = RequestMethod.GET)
   public List<SyncConfigResponse> getAllConfigUpdates() throws BiometricApiException, IOException {
-    return configService.retrieveAllConfigUpdates();
+    final Stopwatch stopwatch = new Stopwatch("SyncController.getAllConfigUpdates").start();
+    try {
+      return configService.retrieveAllConfigUpdates();
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -503,19 +525,23 @@ public class SyncController extends BaseRestController {
       @RequestBody
           String syncErrorRequest)
       throws IOException, BiometricApiException {
-
-    SyncErrorRequest request = util.jsonToObject(syncErrorRequest, SyncErrorRequest.class);
-    List<SyncError> syncErrors = request.getSyncErrors();
-    if (null == syncErrors || syncErrors.isEmpty()) {
-      throw new EntityValidationException(INVALID_REQUEST_BODY);
-    }
-    for (SyncError syncError : syncErrors) {
-      syncService.saveSyncError(
-          deviceId,
-          syncError.getStackTrace(),
-          syncError.getDateCreated(),
-          syncError.getKey(),
-          util.toJsonString(syncError.getMetadata()));
+    final Stopwatch stopwatch = new Stopwatch("SyncController.saveSyncError").start();
+    try {
+      SyncErrorRequest request = util.jsonToObject(syncErrorRequest, SyncErrorRequest.class);
+      List<SyncError> syncErrors = request.getSyncErrors();
+      if (null == syncErrors || syncErrors.isEmpty()) {
+        throw new EntityValidationException(INVALID_REQUEST_BODY);
+      }
+      for (SyncError syncError : syncErrors) {
+        syncService.saveSyncError(
+            deviceId,
+            syncError.getStackTrace(),
+            syncError.getDateCreated(),
+            syncError.getKey(),
+            util.toJsonString(syncError.getMetadata()));
+      }
+    } finally {
+      stopwatch.stopAndLog();
     }
   }
 
@@ -548,16 +574,19 @@ public class SyncController extends BaseRestController {
       @ApiParam(name = "body", value = "sync error keys list", required = false) @RequestBody
           String body)
       throws IOException, BiometricApiException {
-
-    LOGGER.debug("resolveSyncError request triggered at : {}", new Date());
-    Map<String, List<String>> map =
-        util.jsonToObject(body, new TypeReference<Map<String, List<String>>>() {
-        });
-    List<String> errorKeys = map.get("syncErrorKeys");
-    if (errorKeys.isEmpty()) {
-      throw new EntityValidationException("syncErrorKeys cannot be empty");
+    final Stopwatch stopwatch = new Stopwatch("SyncController.resolveSyncError").start();
+    try {
+      Map<String, List<String>> map =
+          util.jsonToObject(body, new TypeReference<Map<String, List<String>>>() {
+          });
+      List<String> errorKeys = map.get("syncErrorKeys");
+      if (errorKeys.isEmpty()) {
+        throw new EntityValidationException("syncErrorKeys cannot be empty");
+      }
+      syncService.resolveSyncErrors(deviceId, errorKeys);
+    } finally {
+      stopwatch.stopAndLog();
     }
-    syncService.resolveSyncErrors(deviceId, errorKeys);
   }
 
   private List<String> getLocations(SyncScope syncScope) {

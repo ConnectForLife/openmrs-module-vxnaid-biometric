@@ -27,6 +27,7 @@ import org.openmrs.User;
 import org.openmrs.api.UserService;
 import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
 import org.openmrs.module.biometric.api.exception.EntityValidationException;
+import org.openmrs.module.biometric.api.observability.Stopwatch;
 import org.openmrs.module.biometric.api.service.DeviceUserService;
 import org.openmrs.module.biometric.contract.UserResponse;
 import org.openmrs.module.biometric.contract.sync.DeviceNameResponse;
@@ -83,18 +84,24 @@ public class UserController extends BaseRestController {
   @RequestMapping(value = "/users", produces = {
       MediaType.APPLICATION_JSON_VALUE}, method = RequestMethod.GET)
   public List<UserResponse> getAllUsers() {
-    List<User> users = userService.getAllUsers();
-    List<UserResponse> userResponseList = new ArrayList<>();
-    for (User user : users) {
-      if (!Boolean.TRUE.equals(user.getRetired())) {
-        UserResponse response = new UserResponse();
-        response.setUuid(user.getUuid());
-        response.setDisplay(user.getGivenName() + " " + user.getFamilyName());
-        response.setUsername(user.getUsername());
-        userResponseList.add(response);
+    final Stopwatch stopwatch = new Stopwatch("UserController.getAllUsers").start();
+    try {
+      List<User> users = userService.getAllUsers();
+      List<UserResponse> userResponseList = new ArrayList<>();
+      for (User user : users) {
+        if (!Boolean.TRUE.equals(user.getRetired())) {
+          UserResponse response = new UserResponse();
+          response.setUuid(user.getUuid());
+          response.setDisplay(user.getGivenName() + " " + user.getFamilyName());
+          response.setUsername(user.getUsername());
+          userResponseList.add(response);
+        }
       }
+
+      return userResponseList;
+    } finally {
+      stopwatch.stopAndLog();
     }
-    return userResponseList;
   }
 
   /**

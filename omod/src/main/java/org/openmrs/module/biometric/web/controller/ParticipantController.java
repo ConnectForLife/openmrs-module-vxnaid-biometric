@@ -9,11 +9,28 @@
  */
 package org.openmrs.module.biometric.web.controller;
 
+import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.PERSON_TEMPLATE_ATTRIBUTE;
+import static org.openmrs.module.biometric.constants.BiometricModConstants.OPEN_MRS_ID;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.validation.Valid;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.codehaus.jackson.type.TypeReference;
@@ -34,6 +51,7 @@ import org.openmrs.module.biometric.api.exception.EntityConflictException;
 import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
 import org.openmrs.module.biometric.api.exception.EntityValidationException;
 import org.openmrs.module.biometric.api.model.AttributeData;
+import org.openmrs.module.biometric.api.observability.Stopwatch;
 import org.openmrs.module.biometric.api.service.BiometricService;
 import org.openmrs.module.biometric.api.service.ParticipantService;
 import org.openmrs.module.biometric.builder.ParticipantMatchResponseBuilder;
@@ -61,24 +79,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.multipart.MultipartFile;
-
-import javax.validation.Valid;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.PERSON_TEMPLATE_ATTRIBUTE;
-import static org.openmrs.module.biometric.constants.BiometricModConstants.OPEN_MRS_ID;
 
 /** Consists of APIs to register and match participants. */
 @Api(
@@ -158,56 +158,61 @@ public class ParticipantController extends BaseRestController {
           @RequestParam(BIOGRAPHIC_DATA)
           String biographicData)
       throws IOException, BiometricApiException, ParseException {
+    final Stopwatch stopwatch = new Stopwatch("SyncController.getAllConfigUpdates").start();
+    try {
+      RegisterRequest request = util.jsonToObject(biographicData, RegisterRequest.class);
+      Patient patient = patientBuilder.createFromRegisterRequest(request);
 
-    RegisterRequest request = util.jsonToObject(biographicData, RegisterRequest.class);
-    Patient patient = patientBuilder.createFromRegisterRequest(request);
+      validateParticipantIdAndUuid(patient);
+      // Register participant in OpenMRS
+      Patient registeredPatient = participantService.registerParticipant(patient);
 
-    validateParticipantIdAndUuid(patient);
-    // Register participant in OpenMRS
-    Patient registeredPatient = participantService.registerParticipant(patient);
-
-    if (null == registeredPatient) {
-      throw new BiometricApiException("Participant registration failed");
-    }
-
-    String base64EncodedImage = request.getImage();
-    if (null != base64EncodedImage) {
-      LOGGER.debug("Participant registered in OpenMRS with UUID : {}", registeredPatient.getUuid());
-      participantService.saveParticipantImage(
-          patient.getPerson(), base64EncodedImage, SanitizeUtil.sanitizeInputString(deviceId));
-    }
-
-    boolean isIrisRegistered = false;
-    if (null != template) {
-      String locationUuid = locationUtil.getLocationUuid(request.getAttributes());
-
-      try {
-        Date registrationDate = util.convertIsoStringToDate(request.getRegistrationDate());
-        isIrisRegistered =
-            biometricService.registerBiometricData(
-                util.removeWhiteSpaces(request.getParticipantId()),
-                template.getBytes(),
-                deviceId,
-                locationUuid,
-                registrationDate,
-                patient.getUuid());
-      } catch (Exception ex) {
-        // participant registration should not be failed if there is an issue with the biometric
-        // server
-        LOGGER.error("Issue with Biometric Server", ex);
+      if (null == registeredPatient) {
+        throw new BiometricApiException("Participant registration failed");
       }
+
+      String base64EncodedImage = request.getImage();
+      if (null != base64EncodedImage) {
+        LOGGER.debug(
+            "Participant registered in OpenMRS with UUID : {}", registeredPatient.getUuid());
+        participantService.saveParticipantImage(
+            patient.getPerson(), base64EncodedImage, SanitizeUtil.sanitizeInputString(deviceId));
+      }
+
+      boolean isIrisRegistered = false;
+      if (null != template) {
+        String locationUuid = locationUtil.getLocationUuid(request.getAttributes());
+
+        try {
+          Date registrationDate = util.convertIsoStringToDate(request.getRegistrationDate());
+          isIrisRegistered =
+              biometricService.registerBiometricData(
+                  util.removeWhiteSpaces(request.getParticipantId()),
+                  template.getBytes(),
+                  deviceId,
+                  locationUuid,
+                  registrationDate,
+                  patient.getUuid());
+        } catch (Exception ex) {
+          // participant registration should not be failed if there is an issue with the biometric
+          // server
+          LOGGER.error("Issue with Biometric Server", ex);
+        }
+      }
+
+      if (isIrisRegistered) {
+        util.setPersonAttributeValue(
+            registeredPatient.getUuid(), PERSON_TEMPLATE_ATTRIBUTE, deviceId);
+      }
+
+      Map<String, Object> responseMap = new HashMap<>();
+      responseMap.put(PERSON_UUID, SanitizeUtil.sanitizeOutput(registeredPatient.getUuid()));
+      responseMap.put(IRIS_STATUS_PARAM_NAME, isIrisRegistered);
+
+      return responseMap;
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    if (isIrisRegistered) {
-      util.setPersonAttributeValue(
-          registeredPatient.getUuid(), PERSON_TEMPLATE_ATTRIBUTE, deviceId);
-    }
-
-    Map<String, Object> responseMap = new HashMap<>();
-    responseMap.put(PERSON_UUID, SanitizeUtil.sanitizeOutput(registeredPatient.getUuid()));
-    responseMap.put(IRIS_STATUS_PARAM_NAME, isIrisRegistered);
-
-    return responseMap;
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -221,18 +226,23 @@ public class ParticipantController extends BaseRestController {
           @RequestBody
           String biographicData)
       throws IOException, BiometricApiException, ParseException {
-    RegisterRequest request = util.jsonToObject(biographicData, RegisterRequest.class);
-    Patient patient = patientBuilder.createFromUpdateRequest(request);
-    Patient updatedPatient = participantService.updateParticipant(patient);
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.update").start();
+    try {
+      RegisterRequest request = util.jsonToObject(biographicData, RegisterRequest.class);
+      Patient patient = patientBuilder.createFromUpdateRequest(request);
+      Patient updatedPatient = participantService.updateParticipant(patient);
 
-    if (null == updatedPatient) {
-      throw new BiometricApiException("Participant update failed");
+      if (null == updatedPatient) {
+        throw new BiometricApiException("Participant update failed");
+      }
+
+      Map<String, String> responseMap = new HashMap<>();
+      responseMap.put(PERSON_UUID, SanitizeUtil.sanitizeOutput(updatedPatient.getUuid()));
+
+      return responseMap;
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    Map<String, String> responseMap = new HashMap<>();
-    responseMap.put(PERSON_UUID, SanitizeUtil.sanitizeOutput(updatedPatient.getUuid()));
-
-    return responseMap;
   }
 
   /**
@@ -270,30 +280,34 @@ public class ParticipantController extends BaseRestController {
           String personUuid,
       @ApiParam(hidden = true) @RequestParam(value = TEMPLATE) MultipartFile template)
       throws BiometricApiException, IOException {
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.registerTemplate").start();
+    try {
+      // check if participant exists
+      Patient patient = participantService.findPatientByUuid(personUuid);
+      if (null == patient || null == patient.getPatientIdentifier()) {
+        throw new EntityNotFoundException("Participant not found");
+      }
 
-    // check if participant exists
-    Patient patient = participantService.findPatientByUuid(personUuid);
-    if (null == patient || null == patient.getPatientIdentifier()) {
-      throw new EntityNotFoundException("Participant not found");
+      // check if template is already present
+      Set<String> participantSet = new HashSet<>();
+      participantSet.add(patient.getPatientIdentifier().getIdentifier());
+      List<BiometricMatchingResult> biometricResults =
+          biometricService.matchBiometricData(template.getBytes(), participantSet);
+
+      if (!CollectionUtils.isEmpty(biometricResults)) {
+        throw new BiometricApiException("Template already exists for this participant");
+      }
+
+      biometricService.registerBiometricData(
+          util.removeWhiteSpaces(patient.getPatientIdentifier().getIdentifier()),
+          template.getBytes(),
+          deviceId,
+          patient.getPatientIdentifier().getLocation().getUuid(),
+          new Date(patient.getDateCreated().getTime()),
+          patient.getUuid());
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    // check if template is already present
-    Set<String> participantSet = new HashSet<>();
-    participantSet.add(patient.getPatientIdentifier().getIdentifier());
-    List<BiometricMatchingResult> biometricResults =
-        biometricService.matchBiometricData(template.getBytes(), participantSet);
-
-    if (!CollectionUtils.isEmpty(biometricResults)) {
-      throw new BiometricApiException("Template already exists for this participant");
-    }
-
-    biometricService.registerBiometricData(
-        util.removeWhiteSpaces(patient.getPatientIdentifier().getIdentifier()),
-        template.getBytes(),
-        deviceId,
-        patient.getPatientIdentifier().getLocation().getUuid(),
-        new Date(patient.getDateCreated().getTime()),
-        patient.getUuid());
   }
 
   /**
@@ -359,41 +373,45 @@ public class ParticipantController extends BaseRestController {
           @RequestParam(value = "country", required = false)
           String country)
       throws IOException, BiometricApiException {
-
-    if (null == template && StringUtils.isEmpty(participantId) && StringUtils.isEmpty(phone)
-        && StringUtils.isEmpty(motherName)) {
-      throw new EntityValidationException(
-          "template/ParticipantId/Phone/motherName is required for match a participant");
-    }
-
-    boolean isMFAEnabled =
-        Boolean.parseBoolean(
-            Context.getAdministrationService().getGlobalProperty(GP_BIOMETRIC_ENABLE_MFA));
-
-    List<PatientResponse> patients =
-        findBiographicData(
-            SanitizeUtil.sanitizeInputString(participantId),
-            SanitizeUtil.sanitizeInputString(phone),
-            SanitizeUtil.sanitizeInputString(motherName));
-    List<PatientResponse> patientsWithCountry = findPatientsWithCountry(country, patients);
-
-    Set<String> participantSet = new HashSet<>(10);
-    for (PatientResponse participant : patientsWithCountry) {
-      participantSet.add(participant.getParticipantId());
-    }
-
-    List<BiometricMatchingResult> biometricResults = new ArrayList<>();
-    List<ParticipantMatchResponse> responseList;
-
-    if (null != template) {
-      if (isMFAEnabled) {
-        biometricResults = findByBiometricData(template, participantSet);
-      } else {
-        biometricResults = findByBiometricData(template, Collections.emptySet());
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.match").start();
+    try {
+      if (null == template && StringUtils.isEmpty(participantId) && StringUtils.isEmpty(phone)
+          && StringUtils.isEmpty(motherName)) {
+        throw new EntityValidationException(
+            "template/ParticipantId/Phone/motherName is required for match a participant");
       }
+
+      boolean isMFAEnabled =
+          Boolean.parseBoolean(
+              Context.getAdministrationService().getGlobalProperty(GP_BIOMETRIC_ENABLE_MFA));
+
+      List<PatientResponse> patients =
+          findBiographicData(
+              SanitizeUtil.sanitizeInputString(participantId),
+              SanitizeUtil.sanitizeInputString(phone),
+              SanitizeUtil.sanitizeInputString(motherName));
+      List<PatientResponse> patientsWithCountry = findPatientsWithCountry(country, patients);
+
+      Set<String> participantSet = new HashSet<>(10);
+      for (PatientResponse participant : patientsWithCountry) {
+        participantSet.add(participant.getParticipantId());
+      }
+
+      List<BiometricMatchingResult> biometricResults = new ArrayList<>();
+      List<ParticipantMatchResponse> responseList;
+
+      if (null != template) {
+        if (isMFAEnabled) {
+          biometricResults = findByBiometricData(template, participantSet);
+        } else {
+          biometricResults = findByBiometricData(template, Collections.emptySet());
+        }
+      }
+      responseList = builder.createFrom(biometricResults, patientsWithCountry);
+      return responseList;
+    } finally {
+      stopwatch.stopAndLog();
     }
-    responseList = builder.createFrom(biometricResults, patientsWithCountry);
-    return responseList;
   }
 
   /**
@@ -427,12 +445,16 @@ public class ParticipantController extends BaseRestController {
           @RequestParam("reason")
           String reason)
       throws BiometricApiException, IOException {
-
-    Patient patient = Context.getPatientService().getPatientByUuid(personUuid);
-    if (null == patient || patient.getVoided()) {
-      throw new EntityNotFoundException("Participant does not exists or already de-activated");
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.voidParticipant").start();
+    try {
+      Patient patient = Context.getPatientService().getPatientByUuid(personUuid);
+      if (null == patient || patient.getVoided()) {
+        throw new EntityNotFoundException("Participant does not exists or already de-activated");
+      }
+      participantService.voidPatient(patient, reason);
+    } finally {
+      stopwatch.stopAndLog();
     }
-    participantService.voidPatient(patient, reason);
   }
 
   /**
@@ -470,18 +492,20 @@ public class ParticipantController extends BaseRestController {
       @ApiParam(name = "body", value = "Participant uuids", required = true) @RequestBody
           String body)
       throws IOException, BiometricApiException {
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.getParticipantsByUuids").start();
+    try {
+      Map<String, Set<String>> map =
+          util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
 
-    LOGGER.debug("getParticipantsByUuids request triggered at : {}", new Date());
+      util.validateUuids(map.get(PARTICIPANT_UUIDS));
+      List<PatientResponse> results = participantService.findPatientsByUuids(
+          SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
+      results.forEach(patientResponse -> patientResponse.setType(UPDATE_TYPE));
 
-    Map<String, Set<String>> map =
-        util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
-
-    util.validateUuids(map.get(PARTICIPANT_UUIDS));
-    List<PatientResponse> results = participantService.findPatientsByUuids(
-        SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
-    results.forEach(patientResponse -> patientResponse.setType(UPDATE_TYPE));
-
-    return results;
+      return results;
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -523,14 +547,16 @@ public class ParticipantController extends BaseRestController {
       @ApiParam(name = "body", value = "template uuids", required = true) @Valid @RequestBody
           String body)
       throws IOException, EntityValidationException {
-
-    LOGGER.debug("getBiometricTemplatesByUuids request triggered at : {}", new Date());
-
-    Map<String, Set<String>> map =
-        util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
-    util.validateUuids(map.get(PARTICIPANT_UUIDS));
-    return participantService.getBiometricDataByParticipantIds(
-        SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.getBiometricTemplatesByUuids").start();
+    try {
+      Map<String, Set<String>> map =
+          util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
+      util.validateUuids(map.get(PARTICIPANT_UUIDS));
+      return participantService.getBiometricDataByParticipantIds(
+          SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -567,13 +593,18 @@ public class ParticipantController extends BaseRestController {
           @PathVariable("personUuid")
           String personUuid)
       throws IOException, BiometricApiException {
-    Optional<String> imageString = participantService.retrieveParticipantImage(personUuid);
-    if (imageString.isPresent()) {
-      return imageString.get();
-    } else {
-      return new ApiError(
-          HttpStatus.NOT_FOUND.value(),
-          "Unable to retrieve image for person with uuid: " + personUuid);
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.retrievePersonImage").start();
+    try {
+      Optional<String> imageString = participantService.retrieveParticipantImage(personUuid);
+      if (imageString.isPresent()) {
+        return imageString.get();
+      } else {
+        return new ApiError(
+            HttpStatus.NOT_FOUND.value(),
+            "Unable to retrieve image for person with uuid: " + personUuid);
+      }
+    } finally {
+      stopwatch.stopAndLog();
     }
   }
 
@@ -616,13 +647,16 @@ public class ParticipantController extends BaseRestController {
           String deviceId,
       @ApiParam(name = "body", value = "Image uuids", required = true) @RequestBody String body)
       throws IOException, EntityValidationException {
-
-    LOGGER.debug("getImagesByUuids request triggered at : {}", new Date());
-    Map<String, Set<String>> map =
-        util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
-    util.validateUuids(map.get(PARTICIPANT_UUIDS));
-    return participantService.findImagesByUuids(
-        SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.getImagesByUuids").start();
+    try {
+      Map<String, Set<String>> map =
+          util.jsonToObject(body, new TypeReference<Map<String, Set<String>>>() {});
+      util.validateUuids(map.get(PARTICIPANT_UUIDS));
+      return participantService.findImagesByUuids(
+          SanitizeUtil.sanitizeStringList(map.get(PARTICIPANT_UUIDS)));
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -630,25 +664,30 @@ public class ParticipantController extends BaseRestController {
   @RequestMapping(value = "/identifiers/{name}", method = RequestMethod.GET)
   public List<IdentifierResponse> getAllIdentifiersByType(
       @PathVariable("name") String identifierTypeName) throws EntityNotFoundException {
-    PatientIdentifierType patientIdentifierType =
-        Context.getPatientService().getPatientIdentifierTypeByName(identifierTypeName);
-    if (patientIdentifierType == null) {
-      throw new EntityNotFoundException(
-          String.format(
-              "Patient identifier type with name: %s does not exist", identifierTypeName));
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.getAllIdentifiersByType").start();
+    try {
+      PatientIdentifierType patientIdentifierType =
+          Context.getPatientService().getPatientIdentifierTypeByName(identifierTypeName);
+      if (patientIdentifierType == null) {
+        throw new EntityNotFoundException(
+            String.format(
+                "Patient identifier type with name: %s does not exist", identifierTypeName));
+      }
+
+      List<PatientIdentifier> patientIdentifiers =
+          participantService.getAllIdentifiersByType(identifierTypeName);
+
+      return patientIdentifiers.stream()
+          .map(
+              patientIdentifier ->
+                  new IdentifierResponse(
+                      patientIdentifier.getPatient().getUuid(),
+                      identifierTypeName,
+                      patientIdentifier.getIdentifier()))
+          .collect(Collectors.toList());
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    List<PatientIdentifier> patientIdentifiers =
-        participantService.getAllIdentifiersByType(identifierTypeName);
-
-    return patientIdentifiers.stream()
-        .map(
-            patientIdentifier ->
-                new IdentifierResponse(
-                    patientIdentifier.getPatient().getUuid(),
-                    identifierTypeName,
-                    patientIdentifier.getIdentifier()))
-        .collect(Collectors.toList());
   }
 
   @ResponseStatus(HttpStatus.OK)
@@ -659,38 +698,43 @@ public class ParticipantController extends BaseRestController {
   public void updateParticipantLocation(
       @PathVariable("participantUuid") String participantUuid, @RequestBody String newLocationUuid)
       throws EntityNotFoundException {
-    PatientService patientService = Context.getPatientService();
-    Patient participant = patientService.getPatientByUuid(participantUuid);
-    if (participant == null) {
-      throw new EntityNotFoundException(
-          String.format("Participant with uuid: %s not found", participantUuid));
-    }
-
-    String escapedNewLocationUuid = StringUtils.strip(newLocationUuid, "\"");
-
-    PersonAttribute locationAttribute =
-        participant.getAttribute(BiometricModConstants.LOCATION_ATTRIBUTE);
-    if (locationAttribute != null) {
-      PersonAttribute newLocationAttribute = new PersonAttribute();
-      newLocationAttribute.setAttributeType(locationAttribute.getAttributeType());
-      newLocationAttribute.setValue(escapedNewLocationUuid);
-      participant.addAttribute(newLocationAttribute);
-
-      PatientIdentifier patientIdentifier = participant.getPatientIdentifier(OPEN_MRS_ID);
-      if (patientIdentifier != null) {
-        patientIdentifier.setVoided(Boolean.TRUE);
-        patientIdentifier.setVoidReason("Voided because of creating new one with updated location");
-
-        PatientIdentifier identifierWithNewLocation = new PatientIdentifier();
-        identifierWithNewLocation.setIdentifierType(patientIdentifier.getIdentifierType());
-        identifierWithNewLocation.setIdentifier(patientIdentifier.getIdentifier());
-        identifierWithNewLocation.setPreferred(patientIdentifier.getPreferred());
-        identifierWithNewLocation.setLocation(
-            Context.getLocationService().getLocationByUuid(escapedNewLocationUuid));
-        participant.addIdentifier(identifierWithNewLocation);
+    final Stopwatch stopwatch = new Stopwatch("ParticipantController.updateParticipantLocation").start();
+    try {
+      PatientService patientService = Context.getPatientService();
+      Patient participant = patientService.getPatientByUuid(participantUuid);
+      if (participant == null) {
+        throw new EntityNotFoundException(
+            String.format("Participant with uuid: %s not found", participantUuid));
       }
 
-      patientService.savePatient(participant);
+      String escapedNewLocationUuid = StringUtils.strip(newLocationUuid, "\"");
+
+      PersonAttribute locationAttribute =
+          participant.getAttribute(BiometricModConstants.LOCATION_ATTRIBUTE);
+      if (locationAttribute != null) {
+        PersonAttribute newLocationAttribute = new PersonAttribute();
+        newLocationAttribute.setAttributeType(locationAttribute.getAttributeType());
+        newLocationAttribute.setValue(escapedNewLocationUuid);
+        participant.addAttribute(newLocationAttribute);
+
+        PatientIdentifier patientIdentifier = participant.getPatientIdentifier(OPEN_MRS_ID);
+        if (patientIdentifier != null) {
+          patientIdentifier.setVoided(Boolean.TRUE);
+          patientIdentifier.setVoidReason("Voided because of creating new one with updated location");
+
+          PatientIdentifier identifierWithNewLocation = new PatientIdentifier();
+          identifierWithNewLocation.setIdentifierType(patientIdentifier.getIdentifierType());
+          identifierWithNewLocation.setIdentifier(patientIdentifier.getIdentifier());
+          identifierWithNewLocation.setPreferred(patientIdentifier.getPreferred());
+          identifierWithNewLocation.setLocation(
+              Context.getLocationService().getLocationByUuid(escapedNewLocationUuid));
+          participant.addIdentifier(identifierWithNewLocation);
+        }
+
+        patientService.savePatient(participant);
+      }
+    } finally {
+      stopwatch.stopAndLog();
     }
   }
 

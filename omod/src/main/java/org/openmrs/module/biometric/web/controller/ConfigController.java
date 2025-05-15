@@ -15,11 +15,18 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.openmrs.module.biometric.api.contract.LicenseResponse;
 import org.openmrs.module.biometric.api.contract.LocationResponse;
 import org.openmrs.module.biometric.api.exception.BiometricApiException;
 import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
 import org.openmrs.module.biometric.api.exception.EntityValidationException;
+import org.openmrs.module.biometric.api.observability.Stopwatch;
 import org.openmrs.module.biometric.api.service.ConfigService;
 import org.openmrs.module.biometric.contract.LicenseRequest;
 import org.openmrs.module.biometric.contract.sync.LastSyncUpdateRequest;
@@ -37,13 +44,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Biometric API configuration controller
@@ -76,7 +76,12 @@ public class ConfigController extends BaseRestController {
   @ResponseBody
   @RequestMapping(value = "/addresshierarchy", produces = MediaType.APPLICATION_JSON_VALUE, method = RequestMethod.GET)
   public Set<String> getAddressHierarchy() throws BiometricApiException {
-    return configService.retrieveAddressHierarchy();
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.getAddressHierarchy").start();
+    try {
+      return configService.retrieveAddressHierarchy();
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   @ApiOperation(value = "Retrieve locations", notes = "Retrieve locations", response = Map.class)
@@ -87,7 +92,12 @@ public class ConfigController extends BaseRestController {
   @ResponseBody
   @RequestMapping(value = "/location", produces = MediaType.APPLICATION_JSON_VALUE, method = RequestMethod.GET)
   public Map<String, List<LocationResponse>> getLocations() {
-    return configService.retrieveLocations();
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.getLocations").start();
+    try {
+      return configService.retrieveLocations();
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -108,7 +118,12 @@ public class ConfigController extends BaseRestController {
   public String getConfig(
       @ApiParam(name = "name", value = "name", required = true)
       @PathVariable("name") String name) throws EntityNotFoundException {
-    return configService.retrieveConfig(SanitizeUtil.sanitizeInputString(name));
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.getConfig(" + name + ")").start();
+    try {
+      return configService.retrieveConfig(SanitizeUtil.sanitizeInputString(name));
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -126,7 +141,12 @@ public class ConfigController extends BaseRestController {
   @ResponseBody
   @RequestMapping(value = "/version", produces = MediaType.APPLICATION_JSON_VALUE, method = RequestMethod.GET)
   public String getVersionInfo() throws EntityNotFoundException {
-    return configService.retrieveConfig("version");
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.getVersionInfo").start();
+    try {
+      return configService.retrieveConfig("version");
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 
   /**
@@ -153,15 +173,19 @@ public class ConfigController extends BaseRestController {
       @ApiParam(name = "licenseRequest", value = "License request types")
       @RequestBody String licenseRequest)
       throws IOException, BiometricApiException {
-
-    LicenseRequest request = util.jsonToObject(licenseRequest, LicenseRequest.class);
-    if (request.getLicenseTypes().isEmpty()) {
-      throw new EntityValidationException(INVALID_REQUEST_BODY);
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.getLicense").start();
+    try {
+      LicenseRequest request = util.jsonToObject(licenseRequest, LicenseRequest.class);
+      if (request.getLicenseTypes().isEmpty()) {
+        throw new EntityValidationException(INVALID_REQUEST_BODY);
+      }
+      List<LicenseResponse> list = configService
+          .retrieveLicense(SanitizeUtil.sanitizeInputString(deviceId),
+              SanitizeUtil.sanitizeStringList(request.getLicenseTypes()));
+      return Collections.singletonMap("licenses", list);
+    } finally {
+      stopwatch.stopAndLog();
     }
-    List<LicenseResponse> list = configService
-        .retrieveLicense(SanitizeUtil.sanitizeInputString(deviceId),
-            SanitizeUtil.sanitizeStringList(request.getLicenseTypes()));
-    return Collections.singletonMap("licenses", list);
   }
 
   /**
@@ -183,14 +207,18 @@ public class ConfigController extends BaseRestController {
       @ApiParam(name = "licenseRequest", value = "License request types")
       @RequestBody String licenseRequest)
       throws IOException, BiometricApiException {
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.releaseLicense").start();
+    try {
+      LicenseRequest request = util.jsonToObject(licenseRequest, LicenseRequest.class);
 
-    LicenseRequest request = util.jsonToObject(licenseRequest, LicenseRequest.class);
+      if (request.getLicenseTypes().isEmpty()) {
+        throw new EntityValidationException(INVALID_REQUEST_BODY);
+      }
 
-    if (request.getLicenseTypes().isEmpty()) {
-      throw new EntityValidationException(INVALID_REQUEST_BODY);
+      configService.releaseLicense(deviceId, request.getLicenseTypes());
+    } finally {
+      stopwatch.stopAndLog();
     }
-
-    configService.releaseLicense(deviceId, request.getLicenseTypes());
   }
 
   /**
@@ -211,12 +239,17 @@ public class ConfigController extends BaseRestController {
       @RequestHeader(value = DEVICE_ID) String deviceId,
       @ApiParam(name = "lastSyncUpdate", value = "Sync update details", required = true)
       @RequestBody String lastSyncUpdate) throws IOException, BiometricApiException {
-    LastSyncUpdateRequest request = util.jsonToObject(lastSyncUpdate, LastSyncUpdateRequest.class);
-    if (null == request.getDateSyncCompleted() || request.getDateSyncCompleted() == 0) {
-      throw new EntityValidationException(INVALID_REQUEST_BODY);
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.updateLastSyncDate").start();
+    try {
+      LastSyncUpdateRequest request = util.jsonToObject(lastSyncUpdate, LastSyncUpdateRequest.class);
+      if (null == request.getDateSyncCompleted() || request.getDateSyncCompleted() == 0) {
+        throw new EntityValidationException(INVALID_REQUEST_BODY);
+      }
+      configService
+          .updateLastSyncDate(deviceId, request.getSiteUuid(), request.getDateSyncCompleted());
+    } finally {
+      stopwatch.stopAndLog();
     }
-    configService
-        .updateLastSyncDate(deviceId, request.getSiteUuid(), request.getDateSyncCompleted());
   }
 
   /**
@@ -250,6 +283,11 @@ public class ConfigController extends BaseRestController {
   @RequestMapping(value = "/config/vaccine-schedule", produces = MediaType.APPLICATION_JSON_VALUE,
       method = RequestMethod.GET)
   public String getVaccineSchedule() throws EntityNotFoundException {
-    return configService.retrieveVaccineSchedule();
+    final Stopwatch stopwatch = new Stopwatch("ConfigController.getVaccineSchedule").start();
+    try {
+      return configService.retrieveVaccineSchedule();
+    } finally {
+      stopwatch.stopAndLog();
+    }
   }
 }
