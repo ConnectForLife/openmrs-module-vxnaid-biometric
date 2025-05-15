@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.biometric.builder;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.openmrs.module.biometric.constants.BiometricModConstants.OPEN_MRS_ID;
 
 import java.text.ParseException;
@@ -61,25 +62,31 @@ public class PatientBuilder {
       throws EntityNotFoundException, ParseException {
     Patient patient = new Patient();
     patient.setUuid(request.getParticipantUuid());
-    Date registrationDate = util.convertIsoStringToDate(request.getRegistrationDate());
+    Date registrationDate =
+        isNotBlank(request.getRegistrationDate())
+            ? util.convertIsoStringToDate(request.getRegistrationDate())
+            : new Date();
     patient.setDateCreated(registrationDate);
     patient.setPersonDateCreated(registrationDate);
     patient.setGender(request.getGender());
     patient.setBirthdateEstimated(request.getIsBirthDateEstimated());
-    patient.setBirthdate(util.convertIsoStringToDate(request.getBirthdate()));
+    patient.setBirthdate(
+        isNotBlank(request.getBirthdate())
+            ? util.convertIsoStringToDate(request.getBirthdate())
+            : null);
 
     String locationUuid = locationUtil.getLocationUuid(request.getAttributes());
     Location location = locationUtil.getLocationByUuid(locationUuid);
 
-    if (StringUtils.isNotBlank(request.getParticipantId())) {
+    if (isNotBlank(request.getParticipantId())) {
       setIdentifier(patient, OPEN_MRS_ID, request.getParticipantId(), location);
     }
 
-    if (StringUtils.isNotBlank(request.getNin())) {
+    if (isNotBlank(request.getNin())) {
       setIdentifier(patient, BiometricApiConstants.NIN_IDENTIFIER_NAME, request.getNin(), location);
     }
 
-    if (StringUtils.isNotBlank(request.getChildNumber())) {
+    if (isNotBlank(request.getChildNumber())) {
       setIdentifier(patient, BiometricApiConstants.CHILD_NUMBER_IDENTIFIER_NAME, request.getChildNumber(), location);
     }
 
@@ -112,15 +119,15 @@ public class PatientBuilder {
 
     Location location =
         locationUtil.getLocationByUuid(locationUtil.getLocationUuid(request.getAttributes()));
-    if (StringUtils.isNotBlank(request.getParticipantId())) {
+    if (isNotBlank(request.getParticipantId())) {
       setIdentifier(patient, OPEN_MRS_ID, request.getParticipantId(), location);
     }
 
-    if (StringUtils.isNotBlank(request.getNin())) {
+    if (isNotBlank(request.getNin())) {
       setIdentifier(patient, BiometricApiConstants.NIN_IDENTIFIER_NAME, request.getNin(), location);
     }
 
-    if (StringUtils.isNotBlank(request.getChildNumber())) {
+    if (isNotBlank(request.getChildNumber())) {
       setIdentifier(patient, BiometricApiConstants.CHILD_NUMBER_IDENTIFIER_NAME, request.getChildNumber(), location);
     }
 
