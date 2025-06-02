@@ -12,5 +12,5 @@ package org.openmrs.module.biometric.contract.sync;
 
 public enum Gender {
 
-  M, F
+  M, F, O
 }
