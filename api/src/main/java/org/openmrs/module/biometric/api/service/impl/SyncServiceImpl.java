@@ -16,9 +16,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import org.openmrs.Patient;
@@ -160,14 +162,13 @@ public class SyncServiceImpl implements SyncService {
 
   @Override
   @Transactional
-  public final Map<String, Long> getVisitsCount(List<String> locations) {
+  public Map<String, Long> getVisitsCount(List<String> locations) {
     return getCounts(syncDao.getVisitCount(locations));
   }
 
   @Override
   @Transactional(readOnly = true)
-  public final List<SyncTemplateResponse> getAllBiometricTemplates(
-      Date lastModifiedDate,
+  public List<SyncTemplateResponse> getAllBiometricTemplates(Date lastModifiedDate,
       String deviceId,
       String country,
       String siteId,
@@ -274,12 +275,15 @@ public class SyncServiceImpl implements SyncService {
   @Override
   public void resolveSyncErrors(String deviceId, List<String> errorKeys)
       throws EntityNotFoundException {
-    Device device = deviceService.getDeviceByMAC(deviceId, Boolean.FALSE);
+    final Device device = deviceService.getDeviceByMAC(deviceId, Boolean.FALSE);
     if (null == device) {
       throw new EntityNotFoundException("Device not found");
     }
-    for (String key : errorKeys) {
-      List<DeviceError> deviceErrors = deviceErrorService.getDeviceErrorsByKey(device, key, false);
+
+    final Set<String> uniqueErrorKeys = new HashSet<>(errorKeys);
+    for (String key : uniqueErrorKeys) {
+      final Set<DeviceError> deviceErrors =
+          new HashSet<>(deviceErrorService.getDeviceErrorsByKey(device, key, false));
       for (DeviceError deviceError : deviceErrors) {
         deviceError.setVoided(Boolean.TRUE);
         deviceError.setVoidReason("Error resolved");
