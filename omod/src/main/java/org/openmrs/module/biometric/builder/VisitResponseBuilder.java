@@ -10,6 +10,7 @@
 
 package org.openmrs.module.biometric.builder;
 
+import static java.util.Comparator.comparing;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_DELETE;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_UPDATE;
 
@@ -19,6 +20,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import org.openmrs.BaseOpenmrsData;
 import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Visit;
@@ -29,9 +31,7 @@ import org.openmrs.module.biometric.api.model.AttributeData;
 import org.openmrs.module.biometric.contract.NewVisitResponse;
 import org.openmrs.module.biometric.contract.Observation;
 import org.openmrs.module.biometric.contract.VisitResponse;
-import org.openmrs.module.biometric.util.BiometricModUtil;
 import org.openmrs.module.biometric.util.SanitizeUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -41,9 +41,6 @@ import org.springframework.stereotype.Component;
 public class VisitResponseBuilder {
 
   private static final String RFC_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
-
-  @Autowired
-  private BiometricModUtil util;
 
   /**
    * To create a visit response object from Visit entity.
@@ -63,8 +60,7 @@ public class VisitResponseBuilder {
    */
   public List<VisitResponse> createFrom(List<Visit> visits) {
     List<VisitResponse> responses = new ArrayList<>(BiometricApiConstants.INITIAL_SIZE);
-    List<Visit> modifiedVisits = util.getLatestEncounterInVisit(visits);
-    for (Visit visit : modifiedVisits) {
+    for (Visit visit : visits) {
       VisitResponse visitResponse = new VisitResponse();
       visitResponse.setVisitUuid(SanitizeUtil.sanitizeOutput(visit.getUuid()));
       visitResponse.setParticipantUuid(SanitizeUtil.sanitizeOutput(visit.getPatient().getUuid()));
@@ -108,20 +104,23 @@ public class VisitResponseBuilder {
   }
 
   private List<Observation> getObservations(Visit visit) {
-    List<Observation> observations = new ArrayList<>();
-    List<Encounter> encounters = visit.getNonVoidedEncounters();
-    for (Encounter encounter : encounters) {
-      Set<Obs> obsSet = encounter.getAllObs(false);
-      for (Obs obs : obsSet) {
-        Observation observation = new Observation();
-        observation.setDatetime(
-            new SimpleDateFormat(RFC_FORMAT).format(encounter.getEncounterDatetime()));
-        observation.setName(SanitizeUtil.sanitizeOutput(obs.getConcept().getName().getName()));
-        observation.setValue(
-            SanitizeUtil.sanitizeOutput(obs.getValueAsString(Context.getLocale())));
-        observations.add(observation);
-      }
+    final List<Encounter> encounters = visit.getNonVoidedEncounters();
+    encounters.sort(comparing(BaseOpenmrsData::getDateChanged).reversed());
+
+    final Encounter newestEncounter = encounters.get(0);
+
+    final List<Observation> observations = new ArrayList<>();
+    final Set<Obs> obsSet = newestEncounter.getAllObs(false);
+    for (Obs obs : obsSet) {
+      final Observation observation = new Observation();
+      observation.setDatetime(
+          new SimpleDateFormat(RFC_FORMAT).format(newestEncounter.getEncounterDatetime()));
+      observation.setName(SanitizeUtil.sanitizeOutput(obs.getConcept().getName().getName()));
+      observation.setValue(
+          SanitizeUtil.sanitizeOutput(obs.getValueAsString(Context.getLocale())));
+      observations.add(observation);
     }
+
     return observations;
   }
 }
