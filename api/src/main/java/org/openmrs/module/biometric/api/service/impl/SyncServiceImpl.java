@@ -10,6 +10,8 @@
 
 package org.openmrs.module.biometric.api.service.impl;
 
+import static java.lang.Math.min;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -245,7 +247,7 @@ public class SyncServiceImpl implements SyncService {
 
   @Transactional
   @Override
-  public final void saveSyncError(
+  public void saveSyncError(
       String deviceId, String stackTrace, Date createdDate, String key, String meta) {
 
     Device device = deviceService.getDeviceByMAC(deviceId, Boolean.FALSE);
@@ -263,10 +265,10 @@ public class SyncServiceImpl implements SyncService {
       String[] subTypeArray = metaArray[1].split(",", 2);
       deviceError.setMetaSubType(subTypeArray.length > 0 ? subTypeArray[0] : metaArray[1]);
     }
-    deviceError.setStackTrace(stackTrace);
+    deviceError.setStackTrace(stackTrace.substring(0, min(stackTrace.length(), 2000)));
     deviceError.setReportedDate(createdDate);
     deviceError.setKey(key);
-    deviceError.setMeta(meta);
+    deviceError.setMeta(meta.substring(0, min(meta.length(), 2000)));
     deviceError.setDevice(device);
     deviceErrorService.saveDeviceError(deviceError);
   }
