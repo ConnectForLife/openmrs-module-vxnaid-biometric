@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.transaction.Transactional;
 import javax.validation.Valid;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -221,6 +222,7 @@ public class ParticipantController extends BaseRestController {
       value = "/update",
       produces = {MediaType.APPLICATION_JSON_VALUE},
       method = RequestMethod.POST)
+  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public Map<String, String> update(
       @ApiParam(name = "biographicData", value = "data of a participant", required = true)
           @RequestBody
