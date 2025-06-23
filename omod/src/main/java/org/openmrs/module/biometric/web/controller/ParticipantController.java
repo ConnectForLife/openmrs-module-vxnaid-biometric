@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.transaction.Transactional;
 import javax.validation.Valid;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -222,7 +221,6 @@ public class ParticipantController extends BaseRestController {
       value = "/update",
       produces = {MediaType.APPLICATION_JSON_VALUE},
       method = RequestMethod.POST)
-  @Transactional(Transactional.TxType.REQUIRES_NEW)
   public Map<String, String> update(
       @ApiParam(name = "biographicData", value = "data of a participant", required = true)
           @RequestBody
@@ -230,12 +228,20 @@ public class ParticipantController extends BaseRestController {
       throws IOException, BiometricApiException, ParseException {
     final Stopwatch stopwatch = new Stopwatch("ParticipantController.update").start();
     try {
-      RegisterRequest request = util.jsonToObject(biographicData, RegisterRequest.class);
-      Patient patient = patientBuilder.createFromUpdateRequest(request);
-      Patient updatedPatient = participantService.updateParticipant(patient);
+      final RegisterRequest request = util.jsonToObject(biographicData, RegisterRequest.class);
+      final Patient updatedPatient;
+
+      if( participantService.participantExists(request.getParticipantUuid()) ) {
+        Patient patient = patientBuilder.createFromUpdateRequest(request);
+        updatedPatient = participantService.updateParticipant(patient);
+      } else {
+        Patient patient = patientBuilder.createFromRegisterRequest(request);
+        validateParticipantIdAndUuid(patient);
+        updatedPatient = participantService.registerParticipant(patient);
+      }
 
       if (null == updatedPatient) {
-        throw new BiometricApiException("Participant update failed");
+        throw new BiometricApiException("Participant registration failed");
       }
 
       Map<String, String> responseMap = new HashMap<>();

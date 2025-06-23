@@ -121,6 +121,12 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
     dataSource = util.getDataSource(properties);
   }
 
+  @Transactional(readOnly = true)
+  @Override
+  public boolean participantExists(String uuid) {
+    return patientService.getPatientByUuid(uuid) != null;
+  }
+
   @Transactional(rollbackFor = BiometricApiException.class)
   @Override
   public Patient registerParticipant(Patient patientObj) throws

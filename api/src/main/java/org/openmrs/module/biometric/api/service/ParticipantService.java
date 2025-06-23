@@ -26,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 /** Defines the services to register and match participants. */
 public interface ParticipantService {
 
+  boolean participantExists(String uuid);
+
   /**
    * Register a participant.
    *

@@ -25,6 +25,7 @@ import org.openmrs.PersonAddress;
 import org.openmrs.PersonAttribute;
 import org.openmrs.PersonAttributeType;
 import org.openmrs.PersonName;
+import org.openmrs.api.APIException;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
 import org.openmrs.module.biometric.api.constants.BiometricApiConstants;
@@ -107,7 +108,7 @@ public class PatientBuilder {
     Patient patient = patientService.getPatientByUuid(request.getParticipantUuid());
 
     if(patient == null) {
-      patient = createFromRegisterRequest(request);
+      throw new APIException("Unknown patient with uuid: " + request.getParticipantUuid());
     }
 
     Date updateDate = util.convertIsoStringToDate(request.getUpdateDate());

@@ -10,6 +10,7 @@
 
 package org.openmrs.module.biometric.builder;
 
+import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_DELETE;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_UPDATE;
@@ -105,6 +106,10 @@ public class VisitResponseBuilder {
 
   private List<Observation> getObservations(Visit visit) {
     final List<Encounter> encounters = visit.getNonVoidedEncounters();
+    if(encounters.isEmpty()){
+      return emptyList();
+    }
+
     encounters.sort(comparing(BaseOpenmrsData::getDateChanged).reversed());
 
     final Encounter newestEncounter = encounters.get(0);
