@@ -671,7 +671,6 @@ public class ParticipantController extends BaseRestController {
             throw new BiometricApiException(PATIENT_ALREADY_EXISTS_WITH_DIFF_ID);
           }
         }
-        throw new EntityConflictException(PATIENT_ALREADY_EXISTS);
       } else {
         List<PatientResponse> existingPatientIdList =
             participantService.findByParticipantId(patient.getPatientIdentifier().getIdentifier());

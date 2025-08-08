@@ -119,14 +119,13 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
 
   @Transactional(rollbackFor = BiometricApiException.class)
   @Override
-  public final Patient registerParticipant(Patient patientObj) throws
-      BiometricApiException {
-
-    if (null != patientService.getPatientByUuid(patientObj.getUuid())) {
-      throw new BiometricApiException("Participant already exists with the same uuid");
+  public final Patient registerParticipant(Patient patientObj) {
+    Patient patient = patientObj;
+    if (null == patientService.getPatientByUuid(patientObj.getUuid())) {
+      patient = patientService.savePatient(patientObj);
+      Context.evictFromSession(patient);
     }
-    Patient patient = patientService.savePatient(patientObj);
-    Context.evictFromSession(patient);
+
     return patient;
   }
 

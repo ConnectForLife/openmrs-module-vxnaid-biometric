@@ -197,7 +197,7 @@ public class BiometricServiceImpl extends BaseOpenmrsService implements Biometri
       task.getSubjects().forEach(nSubject -> {
         LOGGER.info("Void request for biometric template for Participant : {} ", nSubject.getId());
         if (nSubject.getId().equalsIgnoreCase(participantId)) {
-          nSubject.setProperty("voided", Boolean.TRUE);
+          nSubject.setProperty("voided", "1");
           NBiometricTask updateTask = biometricClient
               .createTask(EnumSet.of(NBiometricOperation.UPDATE), nSubject);
           biometricClient.performTask(updateTask);
@@ -235,7 +235,7 @@ public class BiometricServiceImpl extends BaseOpenmrsService implements Biometri
     subject.setProperty("participantUuid", participantUuid);
     subject.setProperty("creationDate", registrationDate);
     subject.setProperty("modificationDate", new Date());
-    subject.setProperty("voided", Boolean.FALSE);
+    subject.setProperty("voided", "0");
     return subject;
   }
 }
