@@ -190,7 +190,7 @@ public class BiometricModUtilTest {
 
   @Test
   public void isoStringToDate_shouldCOnvertStringToUTCDate() throws ParseException {
-    String date = "1985-02-04T10:11:12.123+01:00";
+    String date = "2025-07-17T00:00:00.000+00:00";
     Date utcDate = biometricModUtil.convertIsoStringToDate(date);
     assertNotNull(utcDate);
   }
