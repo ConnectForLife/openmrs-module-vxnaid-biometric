@@ -213,6 +213,7 @@ public class SyncDaoImpl implements SyncDao {
     final Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Patient.class);
     criteria.createAlias("attributes", "attribute", JoinType.INNER_JOIN);
     criteria.createAlias("attribute.attributeType", "attributeType", JoinType.INNER_JOIN);
+    criteria.add(Restrictions.eq("attribute.voided", Boolean.FALSE));
     criteria.add(Restrictions.eq("attributeType.name", "LocationAttribute"));
     criteria.add(Restrictions.in("attribute.value", locations));
     return criteria;
