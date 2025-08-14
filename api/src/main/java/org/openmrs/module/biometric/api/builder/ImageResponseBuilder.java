@@ -10,6 +10,7 @@
 
 package org.openmrs.module.biometric.api.builder;
 
+import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_DELETE;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.SYNC_UPDATE;
 
 import java.io.File;
@@ -45,11 +46,10 @@ public class ImageResponseBuilder {
       File file = image.getPath().toFile();
       response.setParticipantUuid(FilenameUtils.getBaseName(file.getName()));
       response.setDateModified(image.getDateModified());
-      response.setType("delete");
-      if (!image.isVoided()) {
-        if (!file.exists()) {
-          continue;
-        }
+      response.setType(SYNC_DELETE);
+      responses.add(response);
+
+      if (!image.isVoided() && file.exists()) {
         byte[] imageFileContent = FileUtils.readFileToByteArray(file);
         String base64EncodedImage = Base64.getEncoder().encodeToString(imageFileContent);
 
@@ -58,7 +58,6 @@ public class ImageResponseBuilder {
           response.setImage(base64EncodedImage);
         }
       }
-      responses.add(response);
     }
     return responses;
   }
