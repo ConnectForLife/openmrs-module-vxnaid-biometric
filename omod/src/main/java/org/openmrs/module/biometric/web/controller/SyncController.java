@@ -10,6 +10,7 @@
 
 package org.openmrs.module.biometric.web.controller;
 
+import static java.util.Optional.ofNullable;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.IGNORED_COUNT;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.TABLE_COUNT;
 import static org.openmrs.module.biometric.api.constants.BiometricApiConstants.VOIDED_COUNT;
@@ -167,9 +168,9 @@ public class SyncController extends BaseRestController {
 
     for (String uuid : request.getUuidsWithDateModifiedOffset()) {
       patients.removeIf(
-          e ->
-              uuid.equals(e.getUuid())
-                  && request.getDateModifiedOffset() == e.getDateChanged().getTime());
+          patient ->
+              uuid.equals(patient.getUuid())
+                  && equalsModifiedDate(request.getDateModifiedOffset(), patient));
     }
 
     Map<String, Long> map = syncService.getPatientCount(locations);
@@ -177,6 +178,11 @@ public class SyncController extends BaseRestController {
     LOGGER.info("Sync-Participants call execution time : {}", Duration.between(start, end));
     return participantRecordsResponseBuilder.createFrom(
         patients, map.get(TABLE_COUNT), map.get(VOIDED_COUNT), request);
+  }
+
+  private boolean equalsModifiedDate(Long lastModifiedDate, Patient patient) {
+    return lastModifiedDate
+        == ofNullable(patient.getDateChanged()).orElse(patient.getDateCreated()).getTime();
   }
 
   /**
