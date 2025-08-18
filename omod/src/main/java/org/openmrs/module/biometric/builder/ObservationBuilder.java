@@ -47,7 +47,7 @@ public class ObservationBuilder {
    * @return set of observations
    * @throws ParseException when it was not possible to parse an Observation value
    */
-  public Set<Obs> createFrom(VisitRequest request, Person person) throws ParseException, EntityNotFoundException {
+  public Set<Obs> createFrom(VisitRequest request, Person person) throws ParseException {
     Set<Obs> obsSet = new HashSet<>();
     if (null != request.getObservations() && !request.getObservations().isEmpty()) {
       LOGGER.info("No. of observations : {}", request.getObservations().size());
@@ -59,18 +59,32 @@ public class ObservationBuilder {
 
         Concept concept = Context.getConceptService().getConcept(observation.getName());
         if (null == concept) {
-          LOGGER.warn("Concept with name {} does not exist. Observation will not be saved!", observation.getName());
+          LOGGER.warn(
+              "Concept with name {} does not exist. Observation will not be saved!",
+              observation.getName());
         } else {
-          Obs obs = new Obs();
-          obs.setConcept(concept);
-          obs.setPerson(person);
-          obs.setObsDatetime(util.convertIsoStringToDate(request.getStartDatetime()));
-          obs.setValueAsString(observation.getValue());
-
-          obsSet.add(obs);
+          try {
+            obsSet.add(createObs(concept, person, request, observation));
+          } catch (Exception e) {
+            LOGGER.error(
+                "Failed to save value {} for observation {}",
+                observation.getValue(),
+                observation.getName());
+          }
         }
       }
     }
     return obsSet;
+  }
+
+  private Obs createObs(
+      Concept concept, Person person, VisitRequest request, Observation observation)
+      throws ParseException {
+    Obs obs = new Obs();
+    obs.setConcept(concept);
+    obs.setPerson(person);
+    obs.setObsDatetime(util.convertIsoStringToDate(request.getStartDatetime()));
+    obs.setValueAsString(observation.getValue());
+    return obs;
   }
 }
