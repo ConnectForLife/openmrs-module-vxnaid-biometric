@@ -26,7 +26,6 @@ import org.openmrs.module.biometric.api.contract.PatientResponse;
 import org.openmrs.module.biometric.api.contract.SyncImageResponse;
 import org.openmrs.module.biometric.api.contract.SyncTemplateResponse;
 import org.openmrs.module.biometric.api.exception.BiometricApiException;
-import org.openmrs.module.biometric.api.exception.EntityConflictException;
 import org.openmrs.module.biometric.api.exception.EntityNotFoundException;
 import org.openmrs.module.biometric.api.exception.EntityValidationException;
 import org.openmrs.module.biometric.api.model.AttributeData;
@@ -94,7 +93,6 @@ public class ParticipantController extends BaseRestController {
   private static final String BIOGRAPHIC_DATA = "biographicData";
   private static final String PARTICIPANT_UUIDS = "participantUuids";
   private static final String CROSS_COUNTRY_PARTICIPANTS = "isCrossCountryImplementation";
-  private static final String PATIENT_ALREADY_EXISTS = "duplicate request";
   private static final String PATIENT_ALREADY_EXISTS_WITH_DIFF_ID =
       "Participant already exists with the same uuid";
   private static final String PARTICIPANT_ID_ALREADY_EXISTS = "Participant id already in use";

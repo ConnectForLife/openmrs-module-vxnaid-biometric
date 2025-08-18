@@ -28,6 +28,8 @@ public class RegisterRequest {
 
   private String birthdate;
 
+  private Boolean isBirthDateEstimated;
+
   private String registrationDate;
 
   private int age;
@@ -71,6 +73,14 @@ public class RegisterRequest {
 
   public void setBirthdate(String birthdate) {
     this.birthdate = birthdate;
+  }
+
+  public Boolean getIsBirthDateEstimated() {
+    return isBirthDateEstimated;
+  }
+
+  public void setIsBirthDateEstimated(Boolean isBirthDateEstimated) {
+    this.isBirthDateEstimated = isBirthDateEstimated;
   }
 
   public String getRegistrationDate() {

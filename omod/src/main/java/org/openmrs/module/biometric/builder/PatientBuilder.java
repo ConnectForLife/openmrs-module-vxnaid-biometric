@@ -72,6 +72,7 @@ public class PatientBuilder {
     patient.setPersonDateChanged(new Date());
     patient.setGender(request.getGender());
     patient.setBirthdate(util.convertIsoStringToDate(request.getBirthdate()));
+    patient.setBirthdateEstimated(request.getIsBirthDateEstimated());
     PatientIdentifierType patientIdentifierType = patientService
         .getPatientIdentifierTypeByName(OPEN_MRS_ID);
     PatientIdentifier patientIdentifier = new PatientIdentifier();
