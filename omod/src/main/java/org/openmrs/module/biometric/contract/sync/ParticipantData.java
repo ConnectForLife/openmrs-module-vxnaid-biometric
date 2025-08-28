@@ -25,6 +25,8 @@ public class ParticipantData {
 
   private String participantUuid;
 
+  private Long dateCreated;
+
   private Long dateModified;
 
   @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
@@ -100,6 +102,14 @@ public class ParticipantData {
 
   public void setChildLastName(String childLastName) {
     this.childLastName = childLastName;
+  }
+
+  public Long getDateCreated() {
+    return dateCreated;
+  }
+
+  public void setDateCreated(Long dateCreated) {
+    this.dateCreated = dateCreated;
   }
 
   public Long getDateModified() {

@@ -85,6 +85,7 @@ public class ParticipantRecordsResponseBuilder {
         participantData.setType(SYNC_UPDATE);
       }
       participantData.setParticipantUuid(SecurityUtil.sanitizeOutput(patient.getUuid()));
+      participantData.setDateCreated(patient.getDateCreated().getTime());
       participantData.setDateModified(OpenMRSUtil.getLastModificationDate(patient).getTime());
       participantData.setParticipantId(getSafePatientIdentifier(patient));
       if (Boolean.FALSE.equals(patient.getVoided())) {
