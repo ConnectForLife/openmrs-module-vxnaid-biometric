@@ -92,7 +92,6 @@ public class SyncDaoImpl implements SyncDao {
     Query query = getQuery(SyncQueryHelper.getSyncIgnoredCountQuery());
     query.setParameterList(LOCATIONS, locations);
     query.setParameter(ATTRIBUTE_TYPE_NAME, attributeType);
-    query.setParameter(DEVICE_ID, deviceId);
     Long ignoredCount = (Long) query.list().get(0);
     Instant end = Instant.now();
     LOGGER.debug("Ignored Count query completed : {}", Duration.between(start, end));

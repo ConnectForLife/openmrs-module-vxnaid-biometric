@@ -27,8 +27,7 @@ public final class SyncQueryHelper {
           + "   select p.id from Person as p "
           + "   inner join p.attributes as pa "
           + "   where pa.voided = 0 and pa.attributeType.name='LocationAttribute' "
-          + "     and pa.value in (:locations)"
-          + "     and attribute.value = :deviceId)";
+          + "     and pa.value in (:locations))";
 
   private static final String SYNC_TOTAL_COUNT_QUERY =
       "select person.voided, count(person.voided) as count from Person as person "
