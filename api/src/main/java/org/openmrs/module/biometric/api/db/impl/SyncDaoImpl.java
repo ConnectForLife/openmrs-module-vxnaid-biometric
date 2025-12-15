@@ -14,12 +14,15 @@ import org.hibernate.Criteria;
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.criterion.DetachedCriteria;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
+import org.hibernate.criterion.Subqueries;
 import org.hibernate.sql.JoinType;
 import org.hibernate.transform.Transformers;
 import org.openmrs.Patient;
+import org.openmrs.PersonAttribute;
 import org.openmrs.Visit;
 import org.openmrs.module.biometric.api.db.SyncDao;
 import org.openmrs.module.biometric.api.helper.SyncQueryHelper;
@@ -209,12 +212,20 @@ public class SyncDaoImpl implements SyncDao {
   }
 
   private Criteria buildPatientLocationsCriteria(List<String> locations) {
-    final Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Patient.class);
+    final Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Patient.class, "p");
+
     criteria.createAlias("attributes", "attribute", JoinType.INNER_JOIN);
     criteria.createAlias("attribute.attributeType", "attributeType", JoinType.INNER_JOIN);
-    criteria.add(Restrictions.eq("attribute.voided", Boolean.FALSE));
+
+    DetachedCriteria maxDateSubquery = DetachedCriteria.forClass(PersonAttribute.class, "subAttr")
+        .createAlias("attributeType", "subType")
+        .add(Restrictions.eq("subType.name", "LocationAttribute"))
+        .add(Restrictions.eqProperty("subAttr.person.personId", "p.patientId"))
+        .setProjection(Projections.max("subAttr.dateCreated"));
+
     criteria.add(Restrictions.eq("attributeType.name", "LocationAttribute"));
     criteria.add(Restrictions.in("attribute.value", locations));
+    criteria.add(Subqueries.propertyEq("attribute.dateCreated", maxDateSubquery));
     return criteria;
   }
 
