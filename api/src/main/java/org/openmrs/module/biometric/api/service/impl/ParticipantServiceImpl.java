@@ -173,7 +173,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
       Patient patient = patientService.getPatient(personId);
       patients.add(patient);
     }
-    return buildPatientResponse(patients);
+    return buildPatientResponse(patients, false);
   }
 
   @Transactional(readOnly = true)
@@ -196,7 +196,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
       patients.add(patient);
     }
 
-    return buildPatientResponse(patients);
+    return buildPatientResponse(patients, false);
   }
 
   @Override
@@ -208,7 +208,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
     types.add(type);
     //exact match by patient identifier
     List<Patient> patients = patientService.getPatients(null, participantId, types, true);
-    return buildPatientResponse(patients);
+    return buildPatientResponse(patients, false);
   }
 
   @Override
@@ -251,7 +251,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
   public List<PatientResponse> findPatientsByUuids(Set<String> uuids)
       throws BiometricApiException,
       IOException {
-    return buildPatientResponse(getPatients(uuids));
+    return buildPatientResponse(getPatients(uuids), true);
   }
 
   @Override
@@ -337,13 +337,13 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
      return results.stream().findFirst().map(Path::toFile);
   }
 
-  private List<PatientResponse> buildPatientResponse(List<Patient> patients)
+  private List<PatientResponse> buildPatientResponse(List<Patient> patients, boolean includeVoided)
       throws BiometricApiException,
       IOException {
     List<PatientResponse> responseList = new ArrayList<>();
     List<Patient> activePatients = patients.stream()
         .filter(Objects::nonNull)
-        .filter(patient -> !patient.getVoided())
+        .filter(patient -> includeVoided || !patient.getVoided())
         .collect(Collectors.toList());
 
     for (Patient patient : activePatients) {
@@ -364,7 +364,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
       }
       response.setAttributes(attributes);
       response.setAddresses(util.getPersonAddressProperty(patient.getPerson()));
-//      response.setType("update");
+      response.setType(Boolean.TRUE.equals(patient.getVoided()) ? SYNC_DELETE : SYNC_UPDATE);
       responseList.add(response);
     }
 
