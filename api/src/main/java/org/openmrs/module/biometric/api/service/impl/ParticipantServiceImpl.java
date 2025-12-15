@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -350,10 +351,16 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
       PatientResponse response = new PatientResponse();
       response.setParticipantUuid(patient.getUuid());
       response.setDateModified(OpenMRSUtil.getLastModificationDate(patient).getTime());
-      response.setParticipantId(patient.getPatientIdentifier().getIdentifier());
+      response.setParticipantId(
+          getVoidedPatientPreferredIdentifier(patient)
+              .map(PatientIdentifier::getIdentifier)
+              .orElse(null));
       response.setGender(Gender.valueOf(patient.getGender()));
       response.setBirthDate(util.dateToISO8601(patient.getBirthdate()));
-      response.setChildNumber(OpenMRSUtil.getIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME));
+      response.setChildNumber(
+          getVoidedPatientIdentifierByType(patient, CHILD_NUMBER_IDENTIFIER_NAME)
+              .map(PatientIdentifier::getIdentifier)
+              .orElse(null));
 
       List<AttributeData> attributes = new ArrayList<>(10);
       for (PersonAttribute personAttribute : patient.getPerson().getActiveAttributes()) {
@@ -389,6 +396,26 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
       return Base64.getEncoder().encodeToString(imageFileContent);
     } catch (IOException e) {
       throw new APIException("Error converting file to Base64 String.", e);
+    }
+  }
+
+  private Optional<PatientIdentifier> getVoidedPatientPreferredIdentifier(Patient patient) {
+    if (patient.getIdentifiers() != null && !patient.getIdentifiers().isEmpty()) {
+      return patient.getIdentifiers().stream().filter(PatientIdentifier::getPreferred)
+          .max(Comparator.comparing(PatientIdentifier::getDateChanged));
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  private Optional<PatientIdentifier> getVoidedPatientIdentifierByType(
+      Patient patient, String identifierTypeName) {
+    if (patient.getIdentifiers() != null && !patient.getIdentifiers().isEmpty()) {
+      return patient.getIdentifiers().stream()
+          .filter(identifier -> identifierTypeName.equals(identifier.getIdentifierType().getName()))
+          .max(Comparator.comparing(PatientIdentifier::getDateChanged));
+    } else {
+      return Optional.empty();
     }
   }
 }
