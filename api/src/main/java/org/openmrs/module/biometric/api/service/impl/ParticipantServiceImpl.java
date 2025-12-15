@@ -375,7 +375,7 @@ public class ParticipantServiceImpl extends BaseOpenmrsService implements Partic
     List<Patient> patients = new ArrayList<>();
     for (String uuid : uuids) {
       Patient patient = patientService.getPatientByUuid(uuid);
-      if (null != patient && !patient.getVoided()) {
+      if (null != patient) {
         patients.add(patient);
       }
     }
