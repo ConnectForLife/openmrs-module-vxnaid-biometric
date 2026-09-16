@@ -251,12 +251,16 @@ public class ParticipantController extends BaseRestController {
       throw new BiometricApiException("Template already exists for this participant");
     }
 
-    biometricService
+    boolean isIrisRegistered = biometricService
         .registerBiometricData(
             util.removeWhiteSpaces(patient.getPatientIdentifier().getIdentifier()),
             template.getBytes(),
             deviceId, patient.getPatientIdentifier().getLocation().getUuid(),
             new Date(patient.getDateCreated().getTime()), patient.getUuid());
+
+    if (isIrisRegistered) {
+      util.setPersonAttributeValue(patient.getUuid(), PERSON_TEMPLATE_ATTRIBUTE, deviceId);
+    }
   }
 
   /**

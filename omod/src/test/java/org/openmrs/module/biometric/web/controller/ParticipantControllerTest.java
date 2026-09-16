@@ -526,7 +526,7 @@ public class ParticipantControllerTest {
   }
 
   @Test
-  public void register_shouldThrow409WhenUuidAlreadyExists() throws Exception {
+  public void register_shouldSucceedWhenUuidExistsWithSameParticipantId() throws Exception {
     //given
     String biographicData = ControllerTestHelper.loadFile(CREATE_PARTICIPANT_JSON);
     RegisterRequest request = new ObjectMapper().readValue(biographicData, RegisterRequest.class);
@@ -558,7 +558,7 @@ public class ParticipantControllerTest {
         .header(DEVICE_HEADER_PARAM, DEVICE_HEADER_VALUE)
         .param(BIOGRAPHIC_DATA, biographicData)
         .contentType(MediaType.MULTIPART_FORM_DATA))
-        .andExpect(status().isConflict());
+        .andExpect(status().isOk());
   }
 
   @Test
